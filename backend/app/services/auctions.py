@@ -10,6 +10,7 @@ from app.repositories import auctions as auction_repository
 from app.repositories import bids as bid_repository
 from app.repositories import statuses as status_repository
 from app.schemas.auctions import AuctionCreate, AuctionPatch
+from app.schemas.auctions import AuctionCatalogItem, AuctionCatalogPage, AuctionPublicDetail, LeaderBid, PublicProduct
 from app.services.status_history import record_status_change
 
 
@@ -22,6 +23,62 @@ def _input_utc(value: datetime, field: str) -> datetime:
 def _stored_utc(value: datetime) -> datetime:
     # SQLite test databases return naive values for timezone-aware columns.
     return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
+def calculate_status(start_date: datetime, end_date: datetime, now: datetime) -> str:
+    """Return the temporal auction state shared by reads and the scheduler."""
+    start = _stored_utc(start_date)
+    end = _stored_utc(end_date)
+    current = _stored_utc(now)
+    if current >= end:
+        return "CERRADA"
+    if current >= start:
+        return "ACTIVA"
+    return "PROGRAMADA"
+
+
+def _public_product(product, category) -> PublicProduct:
+    return PublicProduct(product_id=product.product_id, name=product.name,
+        brand=product.brand, image_url=product.image_url, category=category.name)
+
+
+def _catalog_item(row, now: datetime) -> AuctionCatalogItem:
+    auction, product, category, seller_alias, leader_amount, _leader_alias = row
+    return AuctionCatalogItem(
+        id=auction.auction_id,
+        product=_public_product(product, category),
+        base_price=auction.base_price,
+        minimum_increment=auction.minimum_increment,
+        start_date=auction.start_date,
+        end_date=auction.end_date,
+        status=calculate_status(auction.start_date, auction.end_date, now),
+        current_leader_amount=leader_amount,
+        seller_alias=seller_alias,
+    )
+
+
+def list_public(session: Session, *, limit: int, offset: int) -> AuctionCatalogPage:
+    now = datetime.now(UTC)
+    rows = auction_repository.public_rows(session, limit=limit, offset=offset)
+    return AuctionCatalogPage(items=[_catalog_item(row, now) for row in rows], limit=limit, offset=offset)
+
+
+def get_public(session: Session, auction_id: int) -> AuctionPublicDetail:
+    rows = auction_repository.public_rows(session, limit=1, offset=0, auction_id=auction_id)
+    if not rows:
+        raise HTTPException(status_code=404, detail="Subasta no encontrada.")
+    row = rows[0]
+    now = datetime.now(UTC)
+    item = _catalog_item(row, now)
+    auction, _product, _category, _seller_alias, leader_amount, leader_alias = row
+    if item.status == "PROGRAMADA":
+        remaining = max(0, int((_stored_utc(auction.start_date) - now).total_seconds()))
+    elif item.status == "ACTIVA":
+        remaining = max(0, int((_stored_utc(auction.end_date) - now).total_seconds()))
+    else:
+        remaining = 0
+    leader = LeaderBid(amount=leader_amount, bidder_alias=leader_alias) if leader_amount is not None else None
+    return AuctionPublicDetail(**item.model_dump(), leader_bid=leader, remaining_seconds=remaining)
 
 
 def _validate_values(base_price: Decimal, increment: Decimal, start: datetime, end: datetime) -> None:

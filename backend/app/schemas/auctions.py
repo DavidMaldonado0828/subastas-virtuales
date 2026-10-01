@@ -4,6 +4,42 @@ from decimal import Decimal
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class PublicProduct(BaseModel):
+    product_id: int
+    name: str
+    brand: str | None
+    image_url: str | None
+    category: str
+
+
+class LeaderBid(BaseModel):
+    amount: Decimal
+    bidder_alias: str
+
+
+class AuctionCatalogItem(BaseModel):
+    id: int
+    product: PublicProduct
+    base_price: Decimal
+    minimum_increment: Decimal
+    start_date: datetime
+    end_date: datetime
+    status: str
+    current_leader_amount: Decimal | None
+    seller_alias: str
+
+
+class AuctionCatalogPage(BaseModel):
+    items: list[AuctionCatalogItem]
+    limit: int
+    offset: int
+
+
+class AuctionPublicDetail(AuctionCatalogItem):
+    leader_bid: LeaderBid | None
+    remaining_seconds: int
+
+
 class AuctionCreate(BaseModel):
     product_id: int = Field(gt=0)
     base_price: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
