@@ -9,33 +9,27 @@ from app.core.config import BACKEND_DIR
 from app.core.enums import EntityType, UserRole
 from app.core.security import hash_password
 from app.db.session import SessionLocal
+from app.models.category import Category
 from app.models.user import User
+from app.repositories import categories as category_repository
+from app.repositories import statuses as status_repository
 from app.repositories import users as user_repository
+
+SEED_CATEGORIES = (
+    ("Electrónica", "Productos electrónicos."),
+    ("Arte", "Obras y objetos de arte."),
+    ("Hogar", "Artículos para el hogar."),
+    ("Antigüedades", "Objetos antiguos."),
+)
 
 SEED_USERS = (
     {
         "role": UserRole.ADMIN,
-        "name": "Administrador inicial",
-        "alias": "admin-inicial",
-        "email": "admin-inicial@example.com",
-        "phone_number": "+570000000001",
+        "name": "Administrador del Sistema",
+        "alias": "admin_subastas",
+        "email": "admin@example.com",
+        "phone_number": "3000000001",
         "password_variable": "SEED_ADMIN_PASSWORD",
-    },
-    {
-        "role": UserRole.VENDEDOR,
-        "name": "Vendedor inicial",
-        "alias": "vendedor-inicial",
-        "email": "vendedor-inicial@example.com",
-        "phone_number": "+570000000002",
-        "password_variable": "SEED_SELLER_PASSWORD",
-    },
-    {
-        "role": UserRole.POSTOR,
-        "name": "Postor inicial",
-        "alias": "postor-inicial",
-        "email": "postor-inicial@example.com",
-        "phone_number": "+570000000003",
-        "password_variable": "SEED_POSTOR_PASSWORD",
     },
 )
 
@@ -52,14 +46,22 @@ def main() -> int:
         return 2
 
     with SessionLocal() as session:
-        active_status = user_repository.get_status_for_entity(
+        active_status = status_repository.get_status_for_entity(
             session, "ACTIVO", EntityType.USER.value
         )
-        if active_status is None:
+        active_category_status = status_repository.get_status_for_entity(
+            session, "ACTIVO", EntityType.CATEGORY.value
+        )
+        if active_status is None or active_category_status is None:
             print("Ejecuta primero las migraciones de Alembic.", file=sys.stderr)
             return 2
 
         created_count = 0
+        category_count = 0
+        for name, description in SEED_CATEGORIES:
+            if category_repository.get_by_name(session, name) is None:
+                session.add(Category(status_id=active_category_status.status_id, name=name, description=description))
+                category_count += 1
         for seed_user in SEED_USERS:
             existing = user_repository.get_by_email(session, seed_user["email"])
             if existing:
@@ -86,7 +88,7 @@ def main() -> int:
             print("No se pudieron crear las cuentas de seed.", file=sys.stderr)
             return 1
 
-    print(f"Seed completado; cuentas nuevas: {created_count}.")
+    print(f"Seed completado; cuentas nuevas: {created_count}; categorías nuevas: {category_count}.")
     return 0
 
 

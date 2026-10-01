@@ -10,6 +10,7 @@ from app.core.enums import EntityType, UserRole
 from app.core.security import hash_password, verify_password
 from app.models.user import User
 from app.repositories import users as user_repository
+from app.repositories import statuses as status_repository
 from app.schemas.auth import LoginRequest, RegisterableRole, RegisterRequest, UserResponse
 
 def _public_user(user: User) -> UserResponse:
@@ -48,7 +49,7 @@ def register(session: Session, payload: RegisterRequest) -> UserResponse:
             detail="El Postor debe aceptar la política de pujas.",
         )
 
-    active_status = user_repository.get_status_for_entity(
+    active_status = status_repository.get_status_for_entity(
         session, "ACTIVO", EntityType.USER.value
     )
     if active_status is None:
@@ -91,7 +92,7 @@ def login(session: Session, payload: LoginRequest) -> tuple[str, datetime, UserR
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    account_status = user_repository.get_status_code(session, user.status_id)
+    account_status = status_repository.get_status_code(session, user.status_id)
     if account_status in {"BLOQUEADO", "DESACTIVADO"}:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

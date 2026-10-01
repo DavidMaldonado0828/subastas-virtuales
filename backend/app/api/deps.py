@@ -10,6 +10,7 @@ from app.core.enums import UserRole
 from app.db.session import get_db
 from app.models.user import User
 from app.repositories import users as user_repository
+from app.repositories import statuses as status_repository
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -44,7 +45,7 @@ def get_current_user(
     user = user_repository.get_by_id(session, user_id)
     if user is None:
         raise unauthorized
-    current_status = user_repository.get_status_code(session, user.status_id)
+    current_status = status_repository.get_status_code(session, user.status_id)
     if current_status in {"BLOQUEADO", "DESACTIVADO"}:
         raise unauthorized
     return user
