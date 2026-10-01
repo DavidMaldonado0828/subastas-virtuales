@@ -33,6 +33,10 @@ def has_auctions(session: Session, product_id: int) -> bool:
     return bool(session.scalar(select(exists().where(Auction.product_id == product_id))))
 
 
+def get_auctions(session: Session, product_id: int) -> list[Auction]:
+    return list(session.scalars(select(Auction).where(Auction.product_id == product_id)))
+
+
 def ever_active_or_closed(session: Session, product_id: int) -> bool:
     auction_ids = select(Auction.auction_id).where(Auction.product_id == product_id)
     current = session.scalar(select(exists().where(

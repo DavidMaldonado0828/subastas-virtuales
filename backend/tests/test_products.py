@@ -1,5 +1,6 @@
 from collections.abc import Iterator
 from datetime import datetime
+from decimal import Decimal
 
 import jwt
 import pytest
@@ -30,15 +31,17 @@ def api(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient, sessionma
     factory = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
     @event.listens_for(factory.class_, "before_flush")
     def assign_sqlite_history_ids(session, flush_context, instances):
+        next_id = 1 + session.query(StatusHistory).count()
         for row in session.new:
             if isinstance(row, StatusHistory) and row.history_id is None:
-                row.history_id = 1 + (session.query(StatusHistory).count())
-    status_codes = ["ACTIVO", "DESACTIVADO", "ACTIVA", "CERRADA", "PROGRAMADA"]
+                row.history_id = next_id
+                next_id += 1
+    status_codes = ["ACTIVO", "DESACTIVADO", "ACTIVA", "CERRADA", "PROGRAMADA", "CANCELADA"]
     with factory() as db:
         for i, code in enumerate(status_codes, 1):
             db.add(Status(status_id=i, code=code, name=code))
         db.flush()
-        for status_id, entity in [(1, "USER"), (1, "CATEGORY"), (1, "PRODUCT"), (2, "CATEGORY"), (2, "PRODUCT"), (3, "AUCTION"), (4, "AUCTION"), (5, "AUCTION")]:
+        for status_id, entity in [(1, "USER"), (1, "CATEGORY"), (1, "PRODUCT"), (2, "CATEGORY"), (2, "PRODUCT"), (3, "AUCTION"), (4, "AUCTION"), (5, "AUCTION"), (6, "AUCTION")]:
             db.add(StatusApplicability(status_id=status_id, entity_type=entity))
         db.add_all([
             User(user_id=1, status_id=1, role=UserRole.VENDEDOR, name="Vendedor", alias="seller", email="s@example.com", password_hash="x", phone_number="123"),
@@ -116,8 +119,28 @@ def test_patch_after_active_or_closed_and_delete_rules(api):
     assert client.patch(f"/api/v1/products/{product['product_id']}", json={"description": "Actualizada", "image_url": "https://example.test/i.jpg"}).status_code == 200
     assert client.patch(f"/api/v1/products/{product['product_id']}", json={"name": "No permitido"}).status_code == 409
     deleted = client.delete(f"/api/v1/products/{product['product_id']}")
-    assert deleted.status_code == 200 and deleted.json()["result"] == "DEACTIVATED"
+    assert deleted.status_code == 409 and "ACTIVA o CERRADA" in deleted.json()["detail"]
     fresh = client.post("/api/v1/products", json=payload(name="Sin subasta")).json()
     assert client.delete(f"/api/v1/products/{fresh['product_id']}").json()["result"] == "DELETED"
     with factory() as db:
         assert db.get(Product, fresh["product_id"]) is None
+
+
+def test_delete_product_with_scheduled_auction_cancels_both_and_records_history(api):
+    client, factory = api
+    product = client.post("/api/v1/products", json=payload()).json()
+    with factory() as db:
+        auction = Auction(product_id=product["product_id"], status_id=5, base_price=Decimal("1.00"), minimum_increment=Decimal("0.50"), start_date=datetime(2027, 1, 1), end_date=datetime(2027, 1, 2))
+        db.add(auction)
+        db.commit()
+        auction_id = auction.auction_id
+    response = client.delete(f"/api/v1/products/{product['product_id']}")
+    assert response.status_code == 200 and response.json()["result"] == "DEACTIVATED"
+    with factory() as db:
+        assert db.get(Product, product["product_id"]).status_id == 2
+        assert db.get(Auction, auction_id).status_id == 6
+        events = db.query(StatusHistory).filter(StatusHistory.event_source == "API_DEACTIVATE_PRODUCT").all()
+        assert {(e.entity_type, e.entity_id, e.old_status_code, e.new_status_code) for e in events} == {
+            ("PRODUCT", product["product_id"], "ACTIVO", "DESACTIVADO"),
+            ("AUCTION", auction_id, "PROGRAMADA", "CANCELADA"),
+        }

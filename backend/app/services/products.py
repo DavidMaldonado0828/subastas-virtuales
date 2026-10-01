@@ -6,12 +6,12 @@ from sqlalchemy.orm import Session
 from app.core.enums import EntityType
 from app.models.category import Category
 from app.models.product import Product
-from app.models.status_history import StatusHistory
 from app.models.user import User
 from app.repositories import categories as category_repository
 from app.repositories import products as product_repository
 from app.repositories import statuses as status_repository
 from app.schemas.products import ProductCreate, ProductPatch
+from app.services.status_history import record_status_change
 
 
 def _category(session: Session, category_id: int) -> Category:
@@ -72,7 +72,11 @@ def update(session: Session, seller: User, product_id: int, payload: ProductPatc
 
 def delete(session: Session, seller: User, product_id: int) -> dict[str, int | str | None]:
     product = _owned(session, product_id, seller.user_id)
-    if not product_repository.has_auctions(session, product_id):
+    auctions = product_repository.get_auctions(session, product_id)
+    blocking = [auction for auction in auctions if status_repository.get_status_code(session, auction.status_id) in ("ACTIVA", "CERRADA")]
+    if blocking:
+        raise HTTPException(status_code=409, detail="No se puede eliminar el producto porque tiene una subasta ACTIVA o CERRADA.")
+    if not auctions:
         session.delete(product)
         session.commit()
         return {"product_id": product_id, "result": "DELETED", "status": None}
@@ -82,9 +86,19 @@ def delete(session: Session, seller: User, product_id: int) -> dict[str, int | s
     old_status = status_repository.get_status_code(session, product.status_id)
     product.status_id = deactivated.status_id
     product.updated_at = datetime.now(UTC)
-    session.add(StatusHistory(entity_type="PRODUCT", entity_id=product_id,
-        old_status_code=old_status, new_status_code="DESACTIVADO", changed_by=seller.user_id,
-        event_source="API"))
+    record_status_change(session, entity_type="PRODUCT", entity_id=product_id,
+        old_status_code=old_status, new_status_code="DESACTIVADO", changed_by=seller,
+        event_source="API_DEACTIVATE_PRODUCT")
+    for auction in auctions:
+        old_auction_status = status_repository.get_status_code(session, auction.status_id)
+        cancelled = status_repository.get_status_for_entity(session, "CANCELADA", EntityType.AUCTION.value)
+        if old_auction_status != "PROGRAMADA" or cancelled is None:
+            session.rollback()
+            raise HTTPException(status_code=503, detail="No fue posible actualizar el estado de la subasta.")
+        auction.status_id = cancelled.status_id
+        record_status_change(session, entity_type="AUCTION", entity_id=auction.auction_id,
+            old_status_code="PROGRAMADA", new_status_code="CANCELADA", changed_by=seller,
+            event_source="API_DEACTIVATE_PRODUCT")
     session.commit()
     return {"product_id": product_id, "result": "DEACTIVATED", "status": "DESACTIVADO"}
 
