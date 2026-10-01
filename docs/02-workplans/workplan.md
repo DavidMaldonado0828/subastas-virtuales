@@ -36,12 +36,12 @@ El SRS `docs/01-srs/negocio_y_alcance_subastas.md` es la fuente de verdad. Cada 
 
 ### Bloque 2.2 — Catálogo y detalle público
 
-- [ ] **[MUST] F2-B2-T1. Catálogo público mínimo:** permitir consultar el catálogo público de subastas. **Verificación:** un usuario puede abrir el catálogo sin autenticación. [MoSCoW: Must have — vistas mínimas: catálogo]
-- [ ] **[MUST] F2-B2-T2. Detalle de subasta:** mostrar producto, precio base, incremento mínimo, puja líder actual y tiempo restante. **Verificación:** el detalle presenta esos datos para una subasta consultable. [MoSCoW: Must have — vista detalle de subasta; HU Participante]
+- [x] **[MUST] F2-B2-T1. Catálogo público mínimo:** permitir consultar el catálogo público de subastas. **Verificación:** un usuario puede abrir el catálogo sin autenticación. [MoSCoW: Must have — vistas mínimas: catálogo]
+- [x] **[MUST] F2-B2-T2. Detalle de subasta:** mostrar producto, precio base, incremento mínimo, puja líder actual y tiempo restante. **Verificación:** el detalle presenta esos datos para una subasta consultable. [MoSCoW: Must have — vista detalle de subasta; HU Participante]
 - [ ] **[SHOULD] F2-B2-T3. Filtros del catálogo por categoría y fecha de cierre:** permitir filtrar el catálogo mediante esos criterios. **Verificación:** los resultados corresponden a la categoría y fecha seleccionadas. [Prioridad no indicada expresamente; RF: catálogo público]
 - [ ] **[SHOULD] F2-B2-T4. Filtros del catálogo por estado temporal:** filtrar subastas activas, próximas y cerradas. **Verificación:** cada filtro devuelve subastas del estado/condición temporal seleccionada. [MoSCoW: Should have — filtros en el catálogo (activas/próximas/cerradas)]
-- [ ] **[MUST] F2-B2-T5. Cambio automático Programada → Activa → Cerrada:** actualizar automáticamente el estado según las fechas de inicio y cierre, representando el recorrido MVP. **Verificación:** el estado cambia al inicio y al cierre conforme al calendario de la subasta. [MoSCoW: Must have — cambio de estado automático]
-- [ ] **[MUST] F2-B2-T6. Consistencia de estados en vistas:** reflejar el estado real de subastas y productos de forma consistente en las vistas aplicables. **Verificación:** la misma entidad muestra el mismo estado en catálogo y paneles donde aparece. [Prioridad no indicada expresamente; RNF: Usabilidad]
+- [x] **[MUST] F2-B2-T5. Cambio automático Programada → Activa → Cerrada:** actualizar automáticamente el estado según las fechas de inicio y cierre, representando el recorrido MVP. **Verificación:** el estado cambia al inicio y al cierre conforme al calendario de la subasta. [MoSCoW: Must have — cambio de estado automático]
+- [x] **[MUST] F2-B2-T6. Consistencia de estados en vistas:** reflejar el estado real de subastas y productos de forma consistente en las vistas aplicables. **Verificación:** la misma entidad muestra el mismo estado en catálogo y paneles donde aparece. [Prioridad no indicada expresamente; RNF: Usabilidad]
 
 ## Fase 3 — Pujas, cierre e historial
 
