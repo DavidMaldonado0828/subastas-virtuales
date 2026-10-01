@@ -39,3 +39,8 @@ def update_product(product_id: int, payload: ProductPatch, session: Session = De
 @router.delete("/products/{product_id}", response_model=ProductDeleteResponse, tags=["products"])
 def delete_product(product_id: int, session: Session = Depends(get_db), seller: User = Depends(require_role(UserRole.VENDEDOR))):
     return product_service.delete(session, seller, product_id)
+
+
+@router.post("/products/{product_id}/reactivate", response_model=ProductResponse, tags=["products"])
+def reactivate_product(product_id: int, session: Session = Depends(get_db), seller: User = Depends(require_role(UserRole.VENDEDOR))):
+    return product_service.reactivate(session, seller, product_id)

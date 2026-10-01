@@ -36,12 +36,12 @@ def api(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient, sessionma
             if isinstance(row, StatusHistory) and row.history_id is None:
                 row.history_id = next_id
                 next_id += 1
-    status_codes = ["ACTIVO", "DESACTIVADO", "ACTIVA", "CERRADA", "PROGRAMADA", "CANCELADA"]
+    status_codes = ["ACTIVO", "DESACTIVADO", "ACTIVA", "CERRADA", "PROGRAMADA", "CANCELADA", "DESACTIVADO_POR_INCUMPLIMIENTO"]
     with factory() as db:
         for i, code in enumerate(status_codes, 1):
             db.add(Status(status_id=i, code=code, name=code))
         db.flush()
-        for status_id, entity in [(1, "USER"), (1, "CATEGORY"), (1, "PRODUCT"), (2, "CATEGORY"), (2, "PRODUCT"), (3, "AUCTION"), (4, "AUCTION"), (5, "AUCTION"), (6, "AUCTION")]:
+        for status_id, entity in [(1, "USER"), (1, "CATEGORY"), (1, "PRODUCT"), (2, "CATEGORY"), (2, "PRODUCT"), (7, "PRODUCT"), (3, "AUCTION"), (4, "AUCTION"), (5, "AUCTION"), (6, "AUCTION")]:
             db.add(StatusApplicability(status_id=status_id, entity_type=entity))
         db.add_all([
             User(user_id=1, status_id=1, role=UserRole.VENDEDOR, name="Vendedor", alias="seller", email="s@example.com", password_hash="x", phone_number="123"),
@@ -144,3 +144,43 @@ def test_delete_product_with_scheduled_auction_cancels_both_and_records_history(
             ("PRODUCT", product["product_id"], "ACTIVO", "DESACTIVADO"),
             ("AUCTION", auction_id, "PROGRAMADA", "CANCELADA"),
         }
+
+
+def test_reactivate_deactivated_product_and_keep_cancelled_auction(api):
+    client, factory = api
+    product = client.post("/api/v1/products", json=payload()).json()
+    with factory() as db:
+        db.get(Product, product["product_id"]).status_id = 2
+        cancelled_auction = Auction(product_id=product["product_id"], status_id=6,
+            base_price=Decimal("10.00"), minimum_increment=Decimal("1.00"),
+            start_date=datetime(2027, 1, 1), end_date=datetime(2027, 1, 2))
+        db.add(cancelled_auction)
+        db.commit()
+        auction_id = cancelled_auction.auction_id
+    response = client.post(f"/api/v1/products/{product['product_id']}/reactivate")
+    assert response.status_code == 200 and response.json()["status_id"] == 1
+    with factory() as db:
+        assert db.get(Auction, auction_id).status_id == 6
+        history = db.query(StatusHistory).filter(StatusHistory.entity_type == "PRODUCT",
+            StatusHistory.entity_id == product["product_id"], StatusHistory.event_source == "USER").one()
+        assert (history.old_status_code, history.new_status_code, history.changed_by) == ("DESACTIVADO", "ACTIVO", 1)
+
+
+def test_reactivation_rejects_suspended_active_and_inactive_category_products(api):
+    client, factory = api
+    active = client.post("/api/v1/products", json=payload()).json()
+    suspended = client.post("/api/v1/products", json=payload(name="Suspendido")).json()
+    inactive_category = client.post("/api/v1/products", json=payload(name="Categoría inactiva")).json()
+    with factory() as db:
+        db.get(Product, suspended["product_id"]).status_id = 7
+        category_product = db.get(Product, inactive_category["product_id"])
+        category_product.status_id = 2
+        category_product.category_id = 2
+        db.commit()
+    suspended_response = client.post(f"/api/v1/products/{suspended['product_id']}/reactivate")
+    assert suspended_response.status_code == 409 and "DESACTIVADO" in suspended_response.json()["detail"]
+    assert client.post(f"/api/v1/products/{active['product_id']}/reactivate").status_code == 409
+    category_response = client.post(f"/api/v1/products/{inactive_category['product_id']}/reactivate")
+    assert category_response.status_code == 409 and "categoría" in category_response.json()["detail"]
+    client.headers["Authorization"] = f"Bearer {client.other_token}"
+    assert client.post(f"/api/v1/products/{suspended['product_id']}/reactivate").status_code == 404

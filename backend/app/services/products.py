@@ -103,5 +103,26 @@ def delete(session: Session, seller: User, product_id: int) -> dict[str, int | s
     return {"product_id": product_id, "result": "DEACTIVATED", "status": "DESACTIVADO"}
 
 
+def reactivate(session: Session, seller: User, product_id: int) -> Product:
+    product = _owned(session, product_id, seller.user_id)
+    current_status = status_repository.get_status_code(session, product.status_id)
+    if current_status != "DESACTIVADO":
+        raise HTTPException(status_code=409, detail="Solo se pueden reactivar productos en estado DESACTIVADO.")
+    category = category_repository.get_by_id(session, product.category_id)
+    if category is None or not category_repository.is_active(session, category):
+        raise HTTPException(status_code=409, detail="No se puede reactivar el producto porque su categoría está desactivada.")
+    active = status_repository.get_status_for_entity(session, "ACTIVO", EntityType.PRODUCT.value)
+    if active is None:
+        raise HTTPException(status_code=503, detail="El catálogo de estados no está inicializado.")
+    product.status_id = active.status_id
+    product.updated_at = datetime.now(UTC)
+    record_status_change(session, entity_type="PRODUCT", entity_id=product_id,
+        old_status_code="DESACTIVADO", new_status_code="ACTIVO", changed_by=seller,
+        event_source="USER")
+    session.commit()
+    session.refresh(product)
+    return product
+
+
 def list_categories(session: Session) -> list[Category]:
     return category_repository.list_active(session)
