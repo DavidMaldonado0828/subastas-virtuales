@@ -24,6 +24,9 @@ class Settings(BaseSettings):
 
     database_url: str = Field(repr=False)
     database_url_pooled: str = Field(repr=False)
+    jwt_secret_key: str | None = Field(default=None, repr=False)
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = Field(default=60, gt=0)
 
     @field_validator("database_url", "database_url_pooled")
     @classmethod
