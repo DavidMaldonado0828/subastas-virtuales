@@ -29,8 +29,8 @@ El SRS `docs/01-srs/negocio_y_alcance_subastas.md` es la fuente de verdad. Cada 
 
 ### Bloque 2.1 — Gestión de subastas por el Vendedor
 
-- [ ] **[MUST] F2-B1-T1. Creación de subastas:** permitir crear una subasta a partir de un producto registrado, indicando precio base, incremento mínimo, fecha de inicio y fecha de cierre. **Verificación:** queda registrada la subasta con esos parámetros y el producto asociado. [MoSCoW: Must have — CRUD de subastas; RF: creación de subasta]
-- [ ] **[MUST] F2-B1-T2. Actualización de subastas sin pujas:** permitir al Vendedor modificar precio base, incremento mínimo y fechas de inicio/cierre únicamente cuando no haya pujas registradas. **Verificación:** cambios sin pujas se aceptan y con pujas se rechazan. [MoSCoW: Must have — CRUD de subastas; RF: actualización de subastas]
+- [x] **[MUST] F2-B1-T1. Creación de subastas:** permitir crear una subasta a partir de un producto registrado, indicando precio base, incremento mínimo, fecha de inicio y fecha de cierre. **Verificación:** queda registrada la subasta con esos parámetros y el producto asociado. [MoSCoW: Must have — CRUD de subastas; RF: creación de subasta]
+- [x] **[MUST] F2-B1-T2. Actualización de subastas sin pujas:** permitir al Vendedor modificar precio base, incremento mínimo y fechas de inicio/cierre únicamente cuando no haya pujas registradas. **Verificación:** cambios sin pujas se aceptan y con pujas se rechazan. [MoSCoW: Must have — CRUD de subastas; RF: actualización de subastas]
 - [ ] **[SHOULD] F2-B1-T3. Cancelación de subasta por el Vendedor sin pujas:** permitir cancelar una subasta propia si no tiene pujas. **Verificación:** se permite sin pujas y se rechaza con pujas. [MoSCoW: Should have — cancelar subasta sin pujas (vendedor)]
 - [ ] **[SHOULD] F2-B1-T4. Filtros de subastas del Vendedor:** filtrar subastas propias por fecha de cierre, categoría y estado. **Verificación:** cada criterio devuelve únicamente subastas propias coincidentes. [Prioridad no indicada expresamente; RF: filtros de subastas]
 
