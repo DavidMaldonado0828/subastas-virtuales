@@ -47,7 +47,7 @@ El SRS `docs/01-srs/negocio_y_alcance_subastas.md` es la fuente de verdad. Cada 
 
 ### Bloque 3.1 — Registro y consulta de pujas
 
-- [ ] **[MUST] F3-B1-T1. Aceptación de la política vinculante:** requerir al Participante aceptar al registrarse la política según la cual las pujas son vinculantes y no se retiran, para poder participar. **Verificación:** sin aceptación no puede participar. [Prioridad no indicada expresamente; HU Participante; RN: 3.2]
+- [x] **[MUST] F3-B1-T1. Aceptación de la política vinculante:** requerir al Participante aceptar al registrarse la política según la cual las pujas son vinculantes y no se retiran, para poder participar. **Verificación:** sin aceptación no puede participar. [Prioridad no indicada expresamente; HU Participante; RN: 3.2]
 - [x] **[MUST] F3-B1-T2. Validación de pujas:** aceptar pujas solo durante el estado Activa y antes de la fecha de cierre, con monto igual o superior a la puja líder más el incremento mínimo; rechazar las demás. **Verificación:** se comprueban estado, fecha e importe límite. [MoSCoW: Must have — pujar con validación de incremento mínimo; RF: pujas]
 - [x] **[MUST] F3-B1-T3. Puja líder y desempate temporal:** actualizar la puja líder con cada puja válida y rechazar una segunda puja del mismo monto cuando existe una primera registrada. **Verificación:** lidera la puja válida más alta y el mismo monto se resuelve por timestamp. [MoSCoW: Must have — pujar con validación de incremento mínimo; RN: 3.2]
 - [x] **[MUST] F3-B1-T4. Consistencia ante pujas simultáneas:** garantizar que pujas concurrentes no permitan aceptar montos iguales o inferiores al mínimo requerido. **Verificación:** las pujas aceptadas simultáneamente respetan el incremento y dejan una puja líder consistente. [Prioridad no indicada expresamente; RNF: Rendimiento y disponibilidad]
@@ -79,7 +79,7 @@ El SRS `docs/01-srs/negocio_y_alcance_subastas.md` es la fuente de verdad. Cada 
 ### Bloque 4.2 — Coherencia y requisitos transversales
 
 - [ ] **[SHOULD] F4-B2-T1. Mensajes de error claros:** presentar mensajes específicos cuando una acción se rechaza, por ejemplo por puja insuficiente, falta de permisos o subasta cerrada. **Verificación:** cada rechazo comunica claramente su causa. [Prioridad no indicada expresamente; RNF: Usabilidad]
-- [ ] **[MUST] F4-B2-T2. Validación de montos y fechas en servidor:** validar en servidor montos de puja y fechas de subasta antes de persistirlos, sin confiar en valores manipulables del cliente. **Verificación:** valores fuera de regla se rechazan antes de guardarse. [MoSCoW: Must have — seguridad; RNF: Seguridad]
+- [x] **[MUST] F4-B2-T2. Validación de montos y fechas en servidor:** validar en servidor montos de puja y fechas de subasta antes de persistirlos, sin confiar en valores manipulables del cliente. **Verificación:** valores fuera de regla se rechazan antes de guardarse. [MoSCoW: Must have — seguridad; RNF: Seguridad]
 - [ ] **[SHOULD] F4-B2-T3. Rendimiento de consultas y concurrencia:** verificar respuesta aceptable de catálogo y detalle con múltiples pujas concurrentes y consistencia de datos ante pujas simultáneas. **Verificación:** consultas y resultados concurrentes cumplen los criterios descritos en el SRS; el umbral de respuesta requiere definición. [Prioridad no indicada expresamente; RNF: Rendimiento y disponibilidad]
 
 ## Funcionalidades Won't have — fuera del alcance
