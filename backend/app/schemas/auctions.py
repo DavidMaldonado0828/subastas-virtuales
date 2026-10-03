@@ -67,3 +67,30 @@ class AuctionResponse(BaseModel):
     end_date: datetime
     created_at: datetime
     updated_at: datetime | None
+
+
+class BidCreate(BaseModel):
+    amount: Decimal = Field(gt=0, max_digits=12, decimal_places=2)
+
+
+class BidResponse(BaseModel):
+    bid_id: int
+    auction_id: int
+    amount: Decimal
+    bid_date: datetime
+    is_leader: bool
+
+
+class MyAuctionItem(BaseModel):
+    auction_id: int
+    product_name: str
+    status: str
+    my_highest_bid: Decimal
+    leader_amount: Decimal
+    is_leader: bool
+
+
+class MyAuctionPage(BaseModel):
+    items: list[MyAuctionItem]
+    limit: int
+    offset: int

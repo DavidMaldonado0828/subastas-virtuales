@@ -10,6 +10,8 @@ from app.repositories import auctions as auction_repository
 from app.repositories import bids as bid_repository
 from app.repositories import statuses as status_repository
 from app.schemas.auctions import AuctionCreate, AuctionPatch
+from app.schemas.auctions import BidCreate, BidResponse, MyAuctionItem, MyAuctionPage
+from app.models.bid import Bid
 from app.schemas.auctions import AuctionCatalogItem, AuctionCatalogPage, AuctionPublicDetail, LeaderBid, PublicProduct
 from app.services.status_history import record_status_change
 
@@ -157,3 +159,47 @@ def update(session: Session, seller: User, auction_id: int, payload: AuctionPatc
     session.commit()
     session.refresh(auction)
     return auction
+
+
+def place_bid(session: Session, participant: User, auction_id: int, payload: BidCreate) -> BidResponse:
+    # A single transaction covers the auction lock, leader read, validation and append.
+    try:
+        auction = bid_repository.get_auction_for_bid(session, auction_id)
+        if auction is None:
+            raise HTTPException(status_code=404, detail="Subasta no encontrada.")
+        now = datetime.now(UTC)
+        stored_status = auction_repository.get_status_code(session, auction.status_id)
+        if stored_status == "CANCELADA" or calculate_status(auction.start_date, auction.end_date, now) != "ACTIVA" or now >= _stored_utc(auction.end_date):
+            raise HTTPException(status_code=409, detail="La subasta no está activa o ya alcanzó su fecha de cierre.")
+        if participant.bid_policy_accepted_at is None:
+            raise HTTPException(status_code=403, detail="Debe aceptar la política vinculante de pujas para participar.")
+        leader = bid_repository.leader(session, auction_id)
+        if leader is not None and leader.participant_id == participant.user_id:
+            raise HTTPException(status_code=409, detail="Usted ya es el líder actual y no puede pujar sobre sí mismo.")
+        minimum = auction.base_price if leader is None else leader.amount + auction.minimum_increment
+        if payload.amount < minimum:
+            raise HTTPException(status_code=422, detail=f"La puja debe ser igual o superior al mínimo requerido: {minimum}.")
+        if bid_repository.amount_exists(session, auction_id, payload.amount):
+            raise HTTPException(status_code=409, detail="Ese monto ya fue registrado; se conserva la primera puja.")
+        bid = Bid(auction_id=auction_id, participant_id=participant.user_id, amount=payload.amount)
+        bid_repository.add(session, bid)
+        session.flush()
+        session.refresh(bid)
+        session.commit()
+        return BidResponse(bid_id=bid.bid_id, auction_id=auction_id, amount=bid.amount,
+                           bid_date=bid.bid_date, is_leader=True)
+    except Exception:
+        session.rollback()
+        raise
+
+
+def list_my_auctions(session: Session, participant: User, *, limit: int, offset: int) -> MyAuctionPage:
+    rows = bid_repository.my_auction_rows(session, participant.user_id, limit=limit, offset=offset)
+    items = []
+    for auction, product, _category, status_code, highest, leader_amount in rows:
+        # State reflects dates even before the scheduler updates the stored status.
+        state = status_code if status_code in {"CANCELADA", "CERRADA", "FINALIZADA_SIN_GANADOR"} else calculate_status(auction.start_date, auction.end_date, datetime.now(UTC))
+        items.append(MyAuctionItem(auction_id=auction.auction_id, product_name=product.name,
+            status=state, my_highest_bid=highest, leader_amount=leader_amount,
+            is_leader=leader_amount == highest and bid_repository.leader(session, auction.auction_id).participant_id == participant.user_id))
+    return MyAuctionPage(items=items, limit=limit, offset=offset)

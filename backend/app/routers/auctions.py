@@ -5,7 +5,7 @@ from app.api.deps import require_role
 from app.core.enums import UserRole
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.auctions import AuctionCatalogPage, AuctionCreate, AuctionPatch, AuctionPublicDetail, AuctionResponse
+from app.schemas.auctions import AuctionCatalogPage, AuctionCreate, AuctionPatch, AuctionPublicDetail, AuctionResponse, BidCreate, BidResponse, MyAuctionPage
 from app.services import auctions as auction_service
 
 router = APIRouter(prefix="/auctions", tags=["auctions"])
@@ -42,3 +42,9 @@ def update_auction(
     seller: User = Depends(require_role(UserRole.VENDEDOR)),
 ) -> AuctionResponse:
     return auction_service.update(session, seller, auction_id, payload)
+
+
+@router.post("/{auction_id}/bids", response_model=BidResponse, status_code=status.HTTP_201_CREATED)
+def place_bid(auction_id: int, payload: BidCreate, session: Session = Depends(get_db),
+              participant: User = Depends(require_role(UserRole.POSTOR))) -> BidResponse:
+    return auction_service.place_bid(session, participant, auction_id, payload)

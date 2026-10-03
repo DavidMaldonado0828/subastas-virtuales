@@ -9,6 +9,7 @@ from app.jobs.auction_statuses import update_auction_statuses
 from app.routers.auth import router as auth_router
 from app.routers.products import router as products_router
 from app.routers.auctions import router as auctions_router
+from app.routers.me import router as me_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -29,6 +30,7 @@ app = FastAPI(title="Sistema de Subastas Virtuales API", version="0.1.0", lifesp
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(products_router, prefix="/api/v1")
 app.include_router(auctions_router, prefix="/api/v1")
+app.include_router(me_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["health"])
