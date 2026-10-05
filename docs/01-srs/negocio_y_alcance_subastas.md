@@ -455,11 +455,10 @@ CATÁLOGO
 ![vista del catalogo](/docs/mockups/catalogo.png)
 
 DETALLE DE LA SUBASTA
-![vista del detalle](/docs/mockups/detalle.png)
-
-![vista del detalle](/docs/mockups/detalle_admin.png)
 
 ![vista del detalle](/docs/mockups/detalle_activa.png)
+![vista del detalle](/docs/mockups/detalle.png)
+![vista del detalle](/docs/mockups/detalle_admin.png)
 
 PANEL VENDEDOR
 ![panel del vendedor](/docs/mockups/panel_vendedor.png)
