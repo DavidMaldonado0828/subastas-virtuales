@@ -10,9 +10,9 @@ from app.repositories import auctions as auction_repository
 from app.repositories import bids as bid_repository
 from app.repositories import statuses as status_repository
 from app.schemas.auctions import AuctionCreate, AuctionPatch
-from app.schemas.auctions import BidCreate, BidResponse, MyAuctionItem, MyAuctionPage
+from app.schemas.auctions import BidCreate, BidResponse, MyAuctionItem, MyAuctionPage, BidHistoryItem, BidHistoryPage
 from app.models.bid import Bid
-from app.schemas.auctions import AuctionCatalogItem, AuctionCatalogPage, AuctionPublicDetail, LeaderBid, PublicProduct
+from app.schemas.auctions import AuctionCatalogItem, AuctionCatalogPage, AuctionPublicDetail, AuctionWinner, LeaderBid, PublicProduct
 from app.services.status_history import record_status_change
 
 
@@ -27,13 +27,13 @@ def _stored_utc(value: datetime) -> datetime:
     return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
 
-def calculate_status(start_date: datetime, end_date: datetime, now: datetime) -> str:
+def calculate_status(start_date: datetime, end_date: datetime, now: datetime, *, has_bids: bool = False) -> str:
     """Return the temporal auction state shared by reads and the scheduler."""
     start = _stored_utc(start_date)
     end = _stored_utc(end_date)
     current = _stored_utc(now)
     if current >= end:
-        return "CERRADA"
+        return "CERRADA" if has_bids else "FINALIZADA_SIN_GANADOR"
     if current >= start:
         return "ACTIVA"
     return "PROGRAMADA"
@@ -53,7 +53,7 @@ def _catalog_item(row, now: datetime) -> AuctionCatalogItem:
         minimum_increment=auction.minimum_increment,
         start_date=auction.start_date,
         end_date=auction.end_date,
-        status=calculate_status(auction.start_date, auction.end_date, now),
+        status=calculate_status(auction.start_date, auction.end_date, now, has_bids=leader_amount is not None),
         current_leader_amount=leader_amount,
         seller_alias=seller_alias,
     )
@@ -80,7 +80,8 @@ def get_public(session: Session, auction_id: int) -> AuctionPublicDetail:
     else:
         remaining = 0
     leader = LeaderBid(amount=leader_amount, bidder_alias=leader_alias) if leader_amount is not None else None
-    return AuctionPublicDetail(**item.model_dump(), leader_bid=leader, remaining_seconds=remaining)
+    winner = AuctionWinner(alias=leader_alias, amount=leader_amount) if item.status == "CERRADA" and leader is not None else None
+    return AuctionPublicDetail(**item.model_dump(), leader_bid=leader, winner=winner, remaining_seconds=remaining)
 
 
 def _validate_values(base_price: Decimal, increment: Decimal, start: datetime, end: datetime) -> None:
@@ -198,8 +199,23 @@ def list_my_auctions(session: Session, participant: User, *, limit: int, offset:
     items = []
     for auction, product, _category, status_code, highest, leader_amount in rows:
         # State reflects dates even before the scheduler updates the stored status.
-        state = status_code if status_code in {"CANCELADA", "CERRADA", "FINALIZADA_SIN_GANADOR"} else calculate_status(auction.start_date, auction.end_date, datetime.now(UTC))
+        state = status_code if status_code in {"CANCELADA", "CERRADA", "FINALIZADA_SIN_GANADOR"} else calculate_status(
+            auction.start_date, auction.end_date, datetime.now(UTC), has_bids=leader_amount is not None)
         items.append(MyAuctionItem(auction_id=auction.auction_id, product_name=product.name,
             status=state, my_highest_bid=highest, leader_amount=leader_amount,
             is_leader=leader_amount == highest and bid_repository.leader(session, auction.auction_id).participant_id == participant.user_id))
     return MyAuctionPage(items=items, limit=limit, offset=offset)
+
+
+def list_bid_history(session: Session, auction_id: int, user: User | None, *, limit: int, offset: int) -> BidHistoryPage:
+    auction = auction_repository.get_by_id(session, auction_id)
+    if auction is None:
+        raise HTTPException(status_code=404, detail="Subasta no encontrada.")
+    is_owner_or_admin = user is not None and (
+        user.role.value == "ADMIN" or auction_repository.get_seller_id(session, auction_id) == user.user_id
+    )
+    result_limit = limit if is_owner_or_admin else 5
+    result_offset = offset if is_owner_or_admin else 0
+    rows = bid_repository.history_rows(session, auction_id, limit=result_limit, offset=result_offset)
+    return BidHistoryPage(items=[BidHistoryItem(bidder_alias=alias, amount=bid.amount, bid_date=bid.bid_date)
+                                 for bid, alias in rows], limit=result_limit, offset=result_offset)

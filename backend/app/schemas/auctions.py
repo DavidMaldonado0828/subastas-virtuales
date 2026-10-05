@@ -17,6 +17,11 @@ class LeaderBid(BaseModel):
     bidder_alias: str
 
 
+class AuctionWinner(BaseModel):
+    alias: str
+    amount: Decimal
+
+
 class AuctionCatalogItem(BaseModel):
     id: int
     product: PublicProduct
@@ -37,7 +42,20 @@ class AuctionCatalogPage(BaseModel):
 
 class AuctionPublicDetail(AuctionCatalogItem):
     leader_bid: LeaderBid | None
+    winner: AuctionWinner | None = None
     remaining_seconds: int
+
+
+class BidHistoryItem(BaseModel):
+    bidder_alias: str
+    amount: Decimal
+    bid_date: datetime
+
+
+class BidHistoryPage(BaseModel):
+    items: list[BidHistoryItem]
+    limit: int
+    offset: int
 
 
 class AuctionCreate(BaseModel):

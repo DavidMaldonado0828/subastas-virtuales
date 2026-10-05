@@ -45,5 +45,11 @@ def my_auction_rows(session: Session, participant_id: int, *, limit: int, offset
             Category.category_id, Status.code).order_by(Auction.auction_id).limit(limit).offset(offset)))
 
 
+def history_rows(session: Session, auction_id: int, *, limit: int, offset: int):
+    return list(session.execute(select(Bid, User.alias).join(User, Bid.participant_id == User.user_id)
+        .where(Bid.auction_id == auction_id).order_by(Bid.amount.desc(), Bid.bid_date.asc(), Bid.bid_id.asc())
+        .limit(limit).offset(offset)))
+
+
 def exists_for_auction(session: Session, auction_id: int) -> bool:
     return session.scalar(select(Bid.bid_id).where(Bid.auction_id == auction_id).limit(1)) is not None

@@ -21,6 +21,10 @@ def get_product(session: Session, product_id: int) -> Product | None:
     return session.get(Product, product_id)
 
 
+def get_by_id(session: Session, auction_id: int) -> Auction | None:
+    return session.get(Auction, auction_id)
+
+
 def get_status_code(session: Session, status_id: int) -> str | None:
     return session.scalar(select(Status.code).where(Status.status_id == status_id))
 
@@ -40,6 +44,11 @@ def get_owned(session: Session, auction_id: int, seller_id: int) -> Auction | No
     return session.scalar(select(Auction).join(Product).where(
         Auction.auction_id == auction_id, Product.seller_id == seller_id
     ))
+
+
+def get_seller_id(session: Session, auction_id: int) -> int | None:
+    return session.scalar(select(Product.seller_id).join(Auction, Auction.product_id == Product.product_id)
+        .where(Auction.auction_id == auction_id))
 
 
 def has_bids(session: Session, auction_id: int) -> bool:
@@ -73,7 +82,7 @@ def get_status_ids(session: Session) -> dict[str, int]:
 
     rows = session.execute(select(Status.code, Status.status_id).join(StatusApplicability).where(
         StatusApplicability.entity_type == "AUCTION", Status.enabled.is_(True),
-        Status.code.in_(("PROGRAMADA", "ACTIVA", "CERRADA")),
+        Status.code.in_(("PROGRAMADA", "ACTIVA", "CERRADA", "FINALIZADA_SIN_GANADOR")),
     ))
     return {code: status_id for code, status_id in rows}
 

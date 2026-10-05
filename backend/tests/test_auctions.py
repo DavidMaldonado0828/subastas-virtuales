@@ -134,12 +134,12 @@ def test_temporal_state_and_scheduler_transitions_are_idempotent(auction_api):
         auction = db.get(Auction, auction_id)
         auction.end_date = now - timedelta(seconds=1)
         db.commit()
-    assert client.get(f"/api/v1/auctions/{auction_id}").json()["status"] == "CERRADA"
+    assert client.get(f"/api/v1/auctions/{auction_id}").json()["status"] == "FINALIZADA_SIN_GANADOR"
     assert update_auction_statuses(factory, now=now) == 1
     assert update_auction_statuses(factory, now=now) == 0
     with factory() as db:
         history = db.query(StatusHistory).filter(StatusHistory.entity_id == auction_id, StatusHistory.entity_type == "AUCTION").all()
         events = [row for row in history if row.event_source == "SCHEDULER"]
         assert [(row.old_status_code, row.new_status_code, row.changed_by) for row in events] == [
-            ("PROGRAMADA", "ACTIVA", None), ("ACTIVA", "CERRADA", None)
+            ("PROGRAMADA", "ACTIVA", None), ("ACTIVA", "FINALIZADA_SIN_GANADOR", None)
         ]
