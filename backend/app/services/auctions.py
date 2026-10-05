@@ -9,24 +9,23 @@ from app.models.user import User
 from app.repositories import auctions as auction_repository
 from app.repositories import bids as bid_repository
 from app.repositories import statuses as status_repository
-from app.schemas.auctions import AuctionCreate, AuctionPatch
+from app.schemas.auctions import AuctionCreate, AuctionPatch, SellerAuctionItem, SellerAuctionPage
 from app.schemas.auctions import BidCreate, BidResponse, MyAuctionItem, MyAuctionPage, BidHistoryItem, BidHistoryPage
 from app.models.bid import Bid
 from app.schemas.auctions import AuctionCatalogItem, AuctionCatalogPage, AuctionPublicDetail, AuctionWinner, LeaderBid, PublicProduct
 from app.services.status_history import record_status_change
 
-
+#Valida que la fecha y hora de inicio y fin de la subasta sean correctas.
 def _input_utc(value: datetime, field: str) -> datetime:
     if value.tzinfo is None or value.utcoffset() is None:
         raise HTTPException(status_code=422, detail=f"{field} debe incluir zona horaria.")
     return value.astimezone(UTC)
 
-
+ # SQLite test de la base de datos no soporta zonas horarias, por lo que se asume que los valores almacenados son UTC.
 def _stored_utc(value: datetime) -> datetime:
-    # SQLite test databases return naive values for timezone-aware columns.
     return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
-
+#Calcula el estado de la subasta según las fechas de inicio y fin, la fecha y hora actual, y si hay pujas registradas.
 def calculate_status(start_date: datetime, end_date: datetime, now: datetime, *, has_bids: bool = False) -> str:
     """Return the temporal auction state shared by reads and the scheduler."""
     start = _stored_utc(start_date)
@@ -38,12 +37,12 @@ def calculate_status(start_date: datetime, end_date: datetime, now: datetime, *,
         return "ACTIVA"
     return "PROGRAMADA"
 
-
+#Muestra el producto público de la subasta, incluyendo el nombre, marca, imagen y categoría del producto.
 def _public_product(product, category) -> PublicProduct:
     return PublicProduct(product_id=product.product_id, name=product.name,
         brand=product.brand, image_url=product.image_url, category=category.name)
 
-
+#Esta función crea un objeto AuctionCatalogItem a partir de una fila de resultados de la base de datos y la fecha y hora actual.
 def _catalog_item(row, now: datetime) -> AuctionCatalogItem:
     auction, product, category, seller_alias, leader_amount, _leader_alias = row
     return AuctionCatalogItem(
@@ -58,13 +57,13 @@ def _catalog_item(row, now: datetime) -> AuctionCatalogItem:
         seller_alias=seller_alias,
     )
 
-
+#Obtiene una lista de subastas públicas, limitadas por la cantidad y el desplazamiento especificados.
 def list_public(session: Session, *, limit: int, offset: int) -> AuctionCatalogPage:
     now = datetime.now(UTC)
     rows = auction_repository.public_rows(session, limit=limit, offset=offset)
     return AuctionCatalogPage(items=[_catalog_item(row, now) for row in rows], limit=limit, offset=offset)
 
-
+#Devuelve los detalles públicos de una subasta específica, incluyendo el producto, el estado, la puja líder y el ganador si corresponde.
 def get_public(session: Session, auction_id: int) -> AuctionPublicDetail:
     rows = auction_repository.public_rows(session, limit=1, offset=0, auction_id=auction_id)
     if not rows:
@@ -83,7 +82,7 @@ def get_public(session: Session, auction_id: int) -> AuctionPublicDetail:
     winner = AuctionWinner(alias=leader_alias, amount=leader_amount) if item.status == "CERRADA" and leader is not None else None
     return AuctionPublicDetail(**item.model_dump(), leader_bid=leader, winner=winner, remaining_seconds=remaining)
 
-
+#Valida los valores por defecto de la subasta.
 def _validate_values(base_price: Decimal, increment: Decimal, start: datetime, end: datetime) -> None:
     now = datetime.now(UTC)
     if base_price <= 0:
@@ -95,7 +94,7 @@ def _validate_values(base_price: Decimal, increment: Decimal, start: datetime, e
     if end <= start:
         raise HTTPException(status_code=422, detail="end_date debe ser posterior a start_date.")
 
-
+#Crear una subasta por parte de un vendedor, validando que el producto esté activo y que no tenga subastas programadas o activas.
 def create(session: Session, seller: User, payload: AuctionCreate) -> Auction:
     product = auction_repository.get_product(session, payload.product_id)
     if product is None or product.seller_id != seller.user_id:
@@ -134,7 +133,7 @@ def create(session: Session, seller: User, payload: AuctionCreate) -> Auction:
     session.refresh(auction)
     return auction
 
-
+#Actualiza los detalles de una subasta por parte de un vendedor, validando que la subasta no tenga pujas registradas y que los valores sean correctos.
 def update(session: Session, seller: User, auction_id: int, payload: AuctionPatch) -> Auction:
     auction = auction_repository.get_owned(session, auction_id, seller.user_id)
     if auction is None:
@@ -161,9 +160,8 @@ def update(session: Session, seller: User, auction_id: int, payload: AuctionPatc
     session.refresh(auction)
     return auction
 
-
+#Coloca una puja en una subasta por parte de un participante, validando que la subasta esté activa y que el monto de la puja sea válido.
 def place_bid(session: Session, participant: User, auction_id: int, payload: BidCreate) -> BidResponse:
-    # A single transaction covers the auction lock, leader read, validation and append.
     try:
         auction = bid_repository.get_auction_for_bid(session, auction_id)
         if auction is None:
@@ -193,12 +191,12 @@ def place_bid(session: Session, participant: User, auction_id: int, payload: Bid
         session.rollback()
         raise
 
-
+#Muestra las subastas en las que un participante ha pujado, con paginación y detalles de cada subasta, incluyendo el estado, la puja más alta del participante y la puja líder.
 def list_my_auctions(session: Session, participant: User, *, limit: int, offset: int) -> MyAuctionPage:
     rows = bid_repository.my_auction_rows(session, participant.user_id, limit=limit, offset=offset)
     items = []
     for auction, product, _category, status_code, highest, leader_amount in rows:
-        # State reflects dates even before the scheduler updates the stored status.
+        # El estado refleja las fechas incluso antes de que el programador actualice el estado almacenado.
         state = status_code if status_code in {"CANCELADA", "CERRADA", "FINALIZADA_SIN_GANADOR"} else calculate_status(
             auction.start_date, auction.end_date, datetime.now(UTC), has_bids=leader_amount is not None)
         items.append(MyAuctionItem(auction_id=auction.auction_id, product_name=product.name,
@@ -206,7 +204,29 @@ def list_my_auctions(session: Session, participant: User, *, limit: int, offset:
             is_leader=leader_amount == highest and bid_repository.leader(session, auction.auction_id).participant_id == participant.user_id))
     return MyAuctionPage(items=items, limit=limit, offset=offset)
 
+#Muestra el historial de una subasta específica, con paginación y detalles de cada puja, incluyendo el alias del participante, el monto y la fecha de la puja.
+def list_seller_auctions(session: Session, seller: User, *, limit: int, offset: int) -> SellerAuctionPage:
+    rows, total = auction_repository.list_seller_auctions(
+        session, seller.user_id, limit=limit, offset=offset
+    )
+    items = []
+    for auction, product, category, status_code, bid_count in rows:
+        current_status = status_code if status_code == "CANCELADA" else calculate_status(
+            auction.start_date, auction.end_date, datetime.now(UTC), has_bids=bid_count > 0
+        )
+        items.append(SellerAuctionItem(
+            auction_id=auction.auction_id,
+            product=_public_product(product, category),
+            base_price=auction.base_price,
+            minimum_increment=auction.minimum_increment,
+            start_date=auction.start_date,
+            end_date=auction.end_date,
+            status=current_status,
+            bid_count=bid_count,
+        ))
+    return SellerAuctionPage(items=items, limit=limit, offset=offset, total=total)
 
+#Muestra el historial de pujas de una subasta específica, con paginación y detalles de cada puja, incluyendo el alias del participante, el monto y la fecha de la puja. Los vendedores y administradores pueden ver todas las pujas, mientras que los demás usuarios solo pueden ver las cinco pujas más recientes.
 def list_bid_history(session: Session, auction_id: int, user: User | None, *, limit: int, offset: int) -> BidHistoryPage:
     auction = auction_repository.get_by_id(session, auction_id)
     if auction is None:

@@ -140,6 +140,30 @@ def test_admin_auction_listing_is_paged_filtered_and_private(admin_api):
     assert filtered["total"] == 1 and filtered["items"][0]["status"] == "CERRADA"
 
 
+def test_admin_user_listing_search_status_pagination_and_privacy(admin_api):
+    client, _ = admin_api
+    headers = {"Authorization": f"Bearer {_token('ADMIN', 1)}"}
+    assert client.get("/api/v1/admin/users").status_code == 401
+    for role, user_id in (("VENDEDOR", 2), ("POSTOR", 3)):
+        response = client.get("/api/v1/admin/users", headers={"Authorization": f"Bearer {_token(role, user_id)}"})
+        assert response.status_code == 403
+
+    page = client.get("/api/v1/admin/users?limit=2&offset=0", headers=headers).json()
+    assert page["total"] == 3 and len(page["items"]) == 2
+    matched = client.get("/api/v1/admin/users?search=bidder@example.com", headers=headers)
+    assert matched.status_code == 200
+    result = matched.json()
+    assert result["total"] == 1
+    assert result["items"] == [{"id": 3, "alias": "bidder", "role": "POSTOR", "status": "ACTIVO"}]
+    assert "email" not in str(result) and "password" not in str(result) and "phone_number" not in str(result)
+    assert client.get("/api/v1/admin/users?search=bidder", headers=headers).json()["total"] == 1
+
+    assert client.patch("/api/v1/admin/users/2/status", json={"status": "BLOQUEADO"}, headers=headers).status_code == 200
+    blocked = client.get("/api/v1/admin/users?status=BLOQUEADO", headers=headers).json()
+    assert blocked["total"] == 1 and blocked["items"][0]["alias"] == "seller"
+    assert client.get("/api/v1/admin/users?status=UNKNOWN", headers=headers).status_code == 422
+
+
 @pytest.mark.parametrize("status_id", [3, 4])
 def test_admin_cancel_auction_preserves_bids_and_records_atomically(admin_api, status_id):
     client, factory = admin_api

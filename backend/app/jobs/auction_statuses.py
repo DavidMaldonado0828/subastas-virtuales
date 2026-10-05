@@ -1,3 +1,4 @@
+#Este archivo contienen la lógica de negocio para actualizar el estado de las subastas.
 from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session, sessionmaker
@@ -7,11 +8,11 @@ from app.repositories import auctions as auction_repository
 from app.services.auctions import calculate_status
 from app.services.status_history import record_status_change
 
-
+#Esá función crea el cron job que actualiza el estado de las subastas según la fecha y hora actual, y registra los cambios de estado en el historial de estados.
 def update_auction_statuses(
     session_factory: sessionmaker[Session], *, now: datetime | None = None
 ) -> int:
-    """Apply date-based auction transitions and append history atomically."""
+    """Aplica transiciones de subasta basadas en la fecha y añade el historial de forma atómica."""
     current_time = now or datetime.now(UTC)
     with session_factory() as session:
         statuses = auction_repository.get_status_ids(session)
@@ -27,7 +28,7 @@ def update_auction_statuses(
                 record_status_change(session, entity_type="AUCTION", entity_id=auction.auction_id,
                     old_status_code="PROGRAMADA", new_status_code="ACTIVA", changed_by=None,
                     event_source="SCHEDULER")
-                # Flush the first event before a possible same-run close; both remain uncommitted.
+                # Flush es necesario ya que refleja los cambios en la sesión antes de continuar.
                 session.flush()
                 current_code = "ACTIVA"
                 changed += 1

@@ -13,6 +13,21 @@ def get_user_for_update(session: Session, user_id: int) -> User | None:
     return session.scalar(select(User).where(User.user_id == user_id).with_for_update())
 
 
+def list_users(session: Session, *, limit: int, offset: int, search: str | None, status: str | None):
+    query = select(User, Status.code).join(Status, User.status_id == Status.status_id)
+    count_query = select(func.count(User.user_id)).join(Status, User.status_id == Status.status_id)
+    if search:
+        term = f"%{search.strip()}%"
+        criterion = User.alias.ilike(term) | User.email.ilike(term)
+        query = query.where(criterion)
+        count_query = count_query.where(criterion)
+    if status:
+        query = query.where(Status.code == status)
+        count_query = count_query.where(Status.code == status)
+    rows = session.execute(query.order_by(User.user_id).limit(limit).offset(offset)).all()
+    return rows, session.scalar(count_query) or 0
+
+
 def list_auctions(session: Session, *, limit: int, offset: int, status: str | None):
     leader_id = select(Bid.bid_id).where(Bid.auction_id == Auction.auction_id).order_by(
         Bid.amount.desc(), Bid.bid_date.asc(), Bid.bid_id.asc()

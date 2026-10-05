@@ -13,6 +13,7 @@ from app.repositories import users as user_repository
 from app.repositories import statuses as status_repository
 from app.schemas.auth import LoginRequest, RegisterableRole, RegisterRequest, UserResponse
 
+#Devuelve una representación pública del usuario, excluyendo información sensible.
 def _public_user(user: User) -> UserResponse:
     return UserResponse(
         user_id=user.user_id,
@@ -22,7 +23,7 @@ def _public_user(user: User) -> UserResponse:
         email=user.email,
     )
 
-
+#Crea un token de acceso JWT para el usuario dado y devuelve el token junto con su fecha de expiración.
 def _create_access_token(user: User) -> tuple[str, datetime]:
     if not settings.jwt_secret_key:
         raise HTTPException(
@@ -37,7 +38,7 @@ def _create_access_token(user: User) -> tuple[str, datetime]:
     )
     return token, expires_at
 
-
+#Registra un nuevo usuario en la base de datos, asegurándose de que el email y el alias sean únicos y que se cumplan las condiciones de aceptación de políticas según el rol del usuario.
 def register(session: Session, payload: RegisterRequest) -> UserResponse:
     if user_repository.get_by_email(session, str(payload.email)):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="El email ya está registrado.")
@@ -82,7 +83,7 @@ def register(session: Session, payload: RegisterRequest) -> UserResponse:
     session.refresh(user)
     return _public_user(user)
 
-
+#Inicia sesión un usuario verificando sus credenciales y estado de cuenta, y devuelve un token de acceso junto con la información pública del usuario.
 def login(session: Session, payload: LoginRequest) -> tuple[str, datetime, UserResponse]:
     user = user_repository.get_by_email(session, str(payload.email))
     if user is None or not verify_password(payload.password, user.password_hash):

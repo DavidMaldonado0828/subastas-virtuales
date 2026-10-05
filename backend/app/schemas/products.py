@@ -41,6 +41,7 @@ class ProductResponse(BaseModel):
     seller_id: int
     category_id: int
     status_id: int
+    status: str
     name: str
     brand: str | None
     description: str

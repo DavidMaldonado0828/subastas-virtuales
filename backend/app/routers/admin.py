@@ -5,11 +5,21 @@ from app.api.deps import require_role
 from app.core.enums import UserRole
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.admin import (AdminAuctionPage, AdminUserStatusResponse,
+from app.schemas.admin import (AdminAuctionPage, AdminUserPage, AdminUserStatusResponse,
     AuctionCancellationResponse, AuctionCancelRequest, UserStatusUpdate)
 from app.services import admin as admin_service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+
+@router.get("/users", response_model=AdminUserPage)
+def list_users(limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0),
+               search: str | None = Query(default=None, min_length=1),
+               status: str | None = Query(default=None), session: Session = Depends(get_db),
+               admin: User = Depends(require_role(UserRole.ADMIN))):
+    if status is not None and status not in {"ACTIVO", "BLOQUEADO", "DESACTIVADO"}:
+        raise HTTPException(status_code=422, detail="Estado de usuario inválido.")
+    return admin_service.list_users(session, limit=limit, offset=offset, search=search, status=status)
 
 
 @router.patch("/users/{user_id}/status", response_model=AdminUserStatusResponse)

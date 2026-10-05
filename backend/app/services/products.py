@@ -10,7 +10,7 @@ from app.models.user import User
 from app.repositories import categories as category_repository
 from app.repositories import products as product_repository
 from app.repositories import statuses as status_repository
-from app.schemas.products import ProductCreate, ProductPatch
+from app.schemas.products import ProductCreate, ProductPatch, ProductResponse
 from app.services.status_history import record_status_change
 
 
@@ -28,7 +28,26 @@ def _owned(session: Session, product_id: int, seller_id: int) -> Product:
     return product
 
 
-def create(session: Session, seller: User, payload: ProductCreate) -> Product:
+def _response(session: Session, product: Product) -> ProductResponse:
+    status_code = status_repository.get_status_code(session, product.status_id)
+    if status_code is None:
+        raise HTTPException(status_code=503, detail="El estado del producto no está disponible.")
+    return ProductResponse(
+        product_id=product.product_id,
+        seller_id=product.seller_id,
+        category_id=product.category_id,
+        status_id=product.status_id,
+        status=status_code,
+        name=product.name,
+        brand=product.brand,
+        description=product.description,
+        image_url=product.image_url,
+        created_at=product.created_at,
+        updated_at=product.updated_at,
+    )
+
+
+def create(session: Session, seller: User, payload: ProductCreate) -> ProductResponse:
     _category(session, payload.category_id)
     active_status = status_repository.get_status_for_entity(session, "ACTIVO", EntityType.PRODUCT.value)
     if active_status is None:
@@ -38,18 +57,19 @@ def create(session: Session, seller: User, payload: ProductCreate) -> Product:
     product_repository.add(session, product)
     session.commit()
     session.refresh(product)
-    return product
+    return _response(session, product)
 
 
-def list_mine(session: Session, seller: User, brand: str | None, category_id: int | None, name: str | None) -> list[Product]:
-    return product_repository.list_owned(session, seller.user_id, brand, category_id, name)
+def list_mine(session: Session, seller: User, brand: str | None, category_id: int | None, name: str | None) -> list[ProductResponse]:
+    products = product_repository.list_owned(session, seller.user_id, brand, category_id, name)
+    return [_response(session, product) for product in products]
 
 
-def get_mine(session: Session, seller: User, product_id: int) -> Product:
-    return _owned(session, product_id, seller.user_id)
+def get_mine(session: Session, seller: User, product_id: int) -> ProductResponse:
+    return _response(session, _owned(session, product_id, seller.user_id))
 
 
-def update(session: Session, seller: User, product_id: int, payload: ProductPatch) -> Product:
+def update(session: Session, seller: User, product_id: int, payload: ProductPatch) -> ProductResponse:
     product = _owned(session, product_id, seller.user_id)
     changes = payload.model_dump(exclude_unset=True)
     if not changes:
@@ -67,7 +87,7 @@ def update(session: Session, seller: User, product_id: int, payload: ProductPatc
     product.updated_at = datetime.now(UTC)
     session.commit()
     session.refresh(product)
-    return product
+    return _response(session, product)
 
 
 def delete(session: Session, seller: User, product_id: int) -> dict[str, int | str | None]:
@@ -103,7 +123,7 @@ def delete(session: Session, seller: User, product_id: int) -> dict[str, int | s
     return {"product_id": product_id, "result": "DEACTIVATED", "status": "DESACTIVADO"}
 
 
-def reactivate(session: Session, seller: User, product_id: int) -> Product:
+def reactivate(session: Session, seller: User, product_id: int) -> ProductResponse:
     product = _owned(session, product_id, seller.user_id)
     current_status = status_repository.get_status_code(session, product.status_id)
     if current_status != "DESACTIVADO":
@@ -121,7 +141,7 @@ def reactivate(session: Session, seller: User, product_id: int) -> Product:
         event_source="USER")
     session.commit()
     session.refresh(product)
-    return product
+    return _response(session, product)
 
 
 def list_categories(session: Session) -> list[Category]:

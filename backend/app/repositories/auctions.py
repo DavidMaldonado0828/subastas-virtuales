@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.auction import Auction
@@ -94,3 +94,17 @@ def open_for_scheduling(session: Session, *, for_update: bool = False) -> list[A
     if for_update:
         query = query.with_for_update()
     return list(session.scalars(query))
+
+
+def list_seller_auctions(session: Session, seller_id: int, *, limit: int, offset: int):
+    bid_count = select(func.count(Bid.bid_id)).where(Bid.auction_id == Auction.auction_id).scalar_subquery()
+    query = select(Auction, Product, Category, Status.code, bid_count).join(
+        Product, Auction.product_id == Product.product_id
+    ).join(Category, Product.category_id == Category.category_id).join(
+        Status, Auction.status_id == Status.status_id
+    ).where(Product.seller_id == seller_id)
+    count_query = select(func.count(Auction.auction_id)).join(
+        Product, Auction.product_id == Product.product_id
+    ).where(Product.seller_id == seller_id)
+    rows = session.execute(query.order_by(Auction.auction_id).limit(limit).offset(offset)).all()
+    return rows, session.scalar(count_query) or 0

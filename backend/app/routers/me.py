@@ -5,7 +5,7 @@ from app.api.deps import require_role
 from app.core.enums import UserRole
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.auctions import MyAuctionPage
+from app.schemas.auctions import MyAuctionPage, SellerAuctionPage
 from app.services import auctions as auction_service
 
 router = APIRouter(prefix="/me", tags=["me"])
@@ -15,3 +15,9 @@ router = APIRouter(prefix="/me", tags=["me"])
 def my_auctions(limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0),
                 session: Session = Depends(get_db), participant: User = Depends(require_role(UserRole.POSTOR))) -> MyAuctionPage:
     return auction_service.list_my_auctions(session, participant, limit=limit, offset=offset)
+
+
+@router.get("/seller/auctions", response_model=SellerAuctionPage)
+def seller_auctions(limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0),
+                    session: Session = Depends(get_db), seller: User = Depends(require_role(UserRole.VENDEDOR))) -> SellerAuctionPage:
+    return auction_service.list_seller_auctions(session, seller, limit=limit, offset=offset)

@@ -88,6 +88,7 @@ def test_categories_public_and_product_creation_validation(api):
     response = client.post("/api/v1/products", json={"name": "Cuadro", "description": "Óleo", "category_id": 1})
     assert response.status_code == 201, response.text
     assert response.json()["brand"] is None and response.json()["image_url"] is None
+    assert response.json()["status"] == "ACTIVO" and response.json()["status_id"] == 1
 
 
 def test_seller_ownership_filters_and_patch(api):
@@ -105,6 +106,7 @@ def test_seller_ownership_filters_and_patch(api):
     client.headers["Authorization"] = f"Bearer {jwt.encode({'sub': '1', 'role': 'VENDEDOR', 'exp': 4102444800}, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)}"
     changed = client.patch(f"/api/v1/products/{one['product_id']}", json={"name": "Nuevo", "category_id": 1})
     assert changed.status_code == 200 and changed.json()["name"] == "Nuevo"
+    assert changed.json()["status"] == "ACTIVO"
 
 
 def test_patch_after_active_or_closed_and_delete_rules(api):
@@ -159,6 +161,7 @@ def test_reactivate_deactivated_product_and_keep_cancelled_auction(api):
         auction_id = cancelled_auction.auction_id
     response = client.post(f"/api/v1/products/{product['product_id']}/reactivate")
     assert response.status_code == 200 and response.json()["status_id"] == 1
+    assert response.json()["status"] == "ACTIVO"
     with factory() as db:
         assert db.get(Auction, auction_id).status_id == 6
         history = db.query(StatusHistory).filter(StatusHistory.entity_type == "PRODUCT",

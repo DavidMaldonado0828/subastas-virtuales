@@ -58,6 +58,20 @@ class AdminUserStatusResponse(BaseModel):
     status: str
 
 
+class AdminUserListItem(BaseModel):
+    id: int
+    alias: str
+    role: str
+    status: str
+
+
+class AdminUserPage(BaseModel):
+    items: list[AdminUserListItem]
+    limit: int
+    offset: int
+    total: int
+
+
 class AuctionCancellationResponse(BaseModel):
     auction_id: int
     status: str

@@ -1,3 +1,4 @@
+# Este modulo contiene dependencias de FastAPI para la autenticación y autorización de usuarios.
 from collections.abc import Callable
 
 import jwt
@@ -12,9 +13,11 @@ from app.models.user import User
 from app.repositories import users as user_repository
 from app.repositories import statuses as status_repository
 
+# Verifica si hay token si no hay no lanza error ya que se maneja por mesnajes personalizados.
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
+# Se comprueba el usuario mediante el token JWT es válido y se verifica su estado.
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     session: Session = Depends(get_db),
@@ -52,11 +55,9 @@ def get_current_user(
     if current_status == "DESACTIVADO":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
             detail="Su cuenta est\u00e1 desactivada.")
-    if current_status in {"BLOQUEADO", "DESACTIVADO"}:
-        raise unauthorized
     return user
 
-
+# Para rutas donde el usuario puede ser opcional, se devuelve None si no hay token.
 def get_optional_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     session: Session = Depends(get_db),
@@ -65,7 +66,7 @@ def get_optional_current_user(
         return None
     return get_current_user(credentials=credentials, session=session)
 
-
+# Dependencia para verificar si el usuario tiene un rol permitido.
 def require_role(*allowed_roles: UserRole) -> Callable[..., User]:
     def role_dependency(current_user: User = Depends(get_current_user)) -> User:
         if current_user.role not in allowed_roles:
@@ -77,9 +78,9 @@ def require_role(*allowed_roles: UserRole) -> Callable[..., User]:
 
     return role_dependency
 
-
+# Dependencia para verificar si el usuario es el propietario del recurso o un administrador.
 def ensure_owner_or_admin(owner_user_id: int, current_user: User) -> None:
-    """Reusable guard for future seller-owned resources."""
+    """Protector reutilizable para recursos futuros propiedad del vendedor."""
     if current_user.role == UserRole.ADMIN:
         return
     if current_user.role != UserRole.VENDEDOR or current_user.user_id != owner_user_id:

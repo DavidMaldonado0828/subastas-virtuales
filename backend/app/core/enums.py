@@ -1,3 +1,4 @@
+#Se define el catalogo de los estados de las entidades de la aplicación.
 from enum import Enum
 
 

@@ -9,11 +9,12 @@ from app.models.user import User
 from app.repositories import admin as admin_repository
 from app.repositories import auctions as auction_repository
 from app.repositories import statuses as status_repository
-from app.schemas.admin import (AdminAuctionItem, AdminAuctionPage, AdminLeaderBid,
+from app.schemas.admin import (AdminAuctionItem, AdminAuctionPage, AdminLeaderBid, AdminUserListItem,
+    AdminUserPage,
     AdminProductSummary, AuctionCancellationResponse, AuctionCancelRequest, UserStatusUpdate)
 from app.services.status_history import record_status_change
 
-
+#Función para actualizar el estado de un usuario por parte de un administrador.
 def update_user_status(session: Session, admin: User, user_id: int, payload: UserStatusUpdate):
     if admin.user_id == user_id:
         raise HTTPException(status_code=409, detail="No puede cambiar su propio estado.")
@@ -43,7 +44,7 @@ def update_user_status(session: Session, admin: User, user_id: int, payload: Use
         session.rollback()
         raise
 
-
+#Función para cancelar una subasta por parte de un administrador, registrando la razón de la cancelación y actualizando el historial de estados.
 def cancel_auction(session: Session, admin: User, auction_id: int, payload: AuctionCancelRequest):
     try:
         auction = admin_repository.get_auction_for_update(session, auction_id)
@@ -71,7 +72,7 @@ def cancel_auction(session: Session, admin: User, auction_id: int, payload: Auct
         session.rollback()
         raise
 
-
+#Lista las subastas con paginación y filtrado por estado, devolviendo un objeto que contiene los detalles de cada subasta y la información de paginación.
 def list_auctions(session: Session, *, limit: int, offset: int, status: str | None) -> AdminAuctionPage:
     rows, total = admin_repository.list_auctions(session, limit=limit, offset=offset, status=status)
     items = [AdminAuctionItem(
@@ -88,3 +89,12 @@ def list_auctions(session: Session, *, limit: int, offset: int, status: str | No
             if leader_amount is not None else None,
     ) for auction, product, category, seller_alias, status_code, bid_count, leader_amount, leader_alias in rows]
     return AdminAuctionPage(items=items, limit=limit, offset=offset, total=total)
+
+#Lista los usuarios con paginación y filtrado por estado, devolviendo un objeto que contiene los detalles de cada usuario y la información de paginación.
+def list_users(session: Session, *, limit: int, offset: int, search: str | None, status: str | None) -> AdminUserPage:
+    rows, total = admin_repository.list_users(
+        session, limit=limit, offset=offset, search=search, status=status
+    )
+    items = [AdminUserListItem(id=user.user_id, alias=user.alias, role=user.role.value, status=status_code)
+             for user, status_code in rows]
+    return AdminUserPage(items=items, limit=limit, offset=offset, total=total)

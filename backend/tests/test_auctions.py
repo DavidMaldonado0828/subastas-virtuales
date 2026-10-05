@@ -41,6 +41,39 @@ def test_create_scheduled_auction_and_record_history(auction_api):
         assert event_row.changed_by == 1
 
 
+def test_seller_auction_list_is_owned_paged_and_includes_status_product_and_bid_count(auction_api):
+    client, factory = auction_api
+    start = datetime.now(UTC) + timedelta(days=1)
+    end = start + timedelta(days=1)
+    with factory() as db:
+        db.add_all([
+            Auction(product_id=1, status_id=3, base_price=Decimal("100.00"), minimum_increment=Decimal("5.00"), start_date=start, end_date=end),
+            Auction(product_id=3, status_id=4, base_price=Decimal("200.00"), minimum_increment=Decimal("10.00"), start_date=start, end_date=end),
+            Auction(product_id=2, status_id=3, base_price=Decimal("300.00"), minimum_increment=Decimal("15.00"), start_date=start, end_date=end),
+        ])
+        db.flush()
+        seller_auction_ids = [row.auction_id for row in db.query(Auction).order_by(Auction.auction_id).all()[:2]]
+        db.add(Bid(auction_id=seller_auction_ids[0], participant_id=3, amount=Decimal("110.00")))
+        db.commit()
+
+    first = client.get("/api/v1/me/seller/auctions?limit=1&offset=0")
+    assert first.status_code == 200
+    first_page = first.json()
+    assert first_page["total"] == 2 and len(first_page["items"]) == 1
+    assert first_page["items"][0]["status"] == "PROGRAMADA"
+    assert first_page["items"][0]["product"]["name"] == "Cuadro"
+    assert first_page["items"][0]["bid_count"] == 1
+    second_page = client.get("/api/v1/me/seller/auctions?limit=1&offset=1").json()
+    assert len(second_page["items"]) == 1
+
+    bidder_token = jwt.encode({"sub": "3", "role": "POSTOR", "exp": 4102444800},
+                              settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    client.headers["Authorization"] = f"Bearer {bidder_token}"
+    assert client.get("/api/v1/me/seller/auctions").status_code == 403
+    client.headers.pop("Authorization")
+    assert client.get("/api/v1/me/seller/auctions").status_code == 401
+
+
 def test_create_rejects_invalid_product_amount_dates_and_duplicate_auction(auction_api):
     client, _ = auction_api
     assert client.post("/api/v1/auctions", json=create_payload(product_id=2)).status_code == 404

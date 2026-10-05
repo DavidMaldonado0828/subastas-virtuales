@@ -112,3 +112,21 @@ class MyAuctionPage(BaseModel):
     items: list[MyAuctionItem]
     limit: int
     offset: int
+
+
+class SellerAuctionItem(BaseModel):
+    auction_id: int
+    product: PublicProduct
+    base_price: Decimal
+    minimum_increment: Decimal
+    start_date: datetime
+    end_date: datetime
+    status: str
+    bid_count: int
+
+
+class SellerAuctionPage(BaseModel):
+    items: list[SellerAuctionItem]
+    limit: int
+    offset: int
+    total: int
