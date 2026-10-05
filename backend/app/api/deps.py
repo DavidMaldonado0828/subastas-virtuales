@@ -46,6 +46,12 @@ def get_current_user(
     if user is None:
         raise unauthorized
     current_status = status_repository.get_status_code(session, user.status_id)
+    if current_status == "BLOQUEADO":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+            detail="Su cuenta est\u00e1 bloqueada. Contacte al administrador.")
+    if current_status == "DESACTIVADO":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+            detail="Su cuenta est\u00e1 desactivada.")
     if current_status in {"BLOQUEADO", "DESACTIVADO"}:
         raise unauthorized
     return user

@@ -10,6 +10,7 @@ from app.routers.auth import router as auth_router
 from app.routers.products import router as products_router
 from app.routers.auctions import router as auctions_router
 from app.routers.me import router as me_router
+from app.routers.admin import router as admin_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -31,6 +32,7 @@ app.include_router(auth_router, prefix="/api/v1")
 app.include_router(products_router, prefix="/api/v1")
 app.include_router(auctions_router, prefix="/api/v1")
 app.include_router(me_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["health"])

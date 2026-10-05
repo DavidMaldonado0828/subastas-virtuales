@@ -199,6 +199,13 @@ def test_login_returns_expiring_jwt_and_rejects_wrong_password(
         json={"email": "seller@example.com", "password": "incorrect-pass"},
     )
     assert wrong_password.status_code == 401
+    assert wrong_password.json()["detail"] == "Email o contrase\u00f1a incorrectos."
+    wrong_email = client.post(
+        "/api/v1/auth/login",
+        json={"email": "missing@example.com", "password": "incorrect-pass"},
+    )
+    assert wrong_email.status_code == 401
+    assert wrong_email.json()["detail"] == wrong_password.json()["detail"]
 
 
 def test_seeded_admin_can_login_but_admin_cannot_register(
@@ -239,7 +246,43 @@ def test_login_rejects_blocked_and_deactivated_users(
         "/api/v1/auth/login",
         json={"email": "seller@example.com", "password": "test-pass-123"},
     )
-    assert response.status_code == 401
+    wrong_password = client.post(
+        "/api/v1/auth/login",
+        json={"email": "seller@example.com", "password": "wrong-password"},
+    )
+    assert wrong_password.status_code == 401
+    assert wrong_password.json()["detail"] == "Email o contrase\u00f1a incorrectos."
+    assert response.status_code == 403
+    expected_message = (
+        "Su cuenta est\u00e1 bloqueada. Contacte al administrador."
+        if status_id == 2
+        else "Su cuenta est\u00e1 desactivada."
+    )
+    assert response.json()["detail"] == expected_message
+
+
+@pytest.mark.parametrize(
+    ("status_id", "expected_message"),
+    [
+        (2, "Su cuenta est\u00e1 bloqueada. Contacte al administrador."),
+        (3, "Su cuenta est\u00e1 desactivada."),
+    ],
+)
+def test_previously_issued_token_is_forbidden_after_account_status_change(
+    auth_api: tuple[TestClient, sessionmaker[Session]], status_id: int, expected_message: str
+) -> None:
+    client, test_session = auth_api
+    created = create_registered_user(client)
+    access_token = login(client, "seller@example.com")["access_token"]
+    with test_session() as session:
+        user = session.get(User, created["user_id"])
+        assert user is not None
+        user.status_id = status_id
+        session.commit()
+
+    response = client.get("/test/seller-only", headers={"Authorization": f"Bearer {access_token}"})
+    assert response.status_code == 403
+    assert response.json()["detail"] == expected_message
 
 
 def test_protected_route_rejects_missing_token_and_wrong_role(
@@ -248,6 +291,13 @@ def test_protected_route_rejects_missing_token_and_wrong_role(
     client, _ = auth_api
     unauthenticated = client.get("/test/seller-only")
     assert unauthenticated.status_code == 401
+    invalid_token = client.get("/test/seller-only", headers={"Authorization": "Bearer invalid-token"})
+    assert invalid_token.status_code == 401
+    expired_token = jwt.encode(
+        {"sub": "1", "exp": 0}, settings.jwt_secret_key, algorithm=settings.jwt_algorithm
+    )
+    expired = client.get("/test/seller-only", headers={"Authorization": f"Bearer {expired_token}"})
+    assert expired.status_code == 401
 
     create_registered_user(client, role="POSTOR", alias="bidder-test", email="bidder@example.com")
     token_result = login(client, "bidder@example.com")
