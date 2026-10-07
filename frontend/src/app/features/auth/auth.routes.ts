@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 
 export const AUTH_ROUTES: Routes = [
-  { path: 'login', loadComponent: () => import('../../shared/components/page-placeholder.component').then(m => m.PagePlaceholderComponent), data: { title: 'Iniciar sesión' } },
-  { path: 'registro', loadComponent: () => import('../../shared/components/page-placeholder.component').then(m => m.PagePlaceholderComponent), data: { title: 'Crear cuenta' } },
+  { path: 'login', loadComponent: () => import('./login.component').then(m => m.LoginComponent) },
+  { path: 'registro', loadComponent: () => import('./register.component').then(m => m.RegisterComponent) },
 ];

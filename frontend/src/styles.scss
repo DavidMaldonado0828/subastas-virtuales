@@ -1,39 +1,87 @@
-// Include theming for Angular Material with `mat.theme()`.
-// This Sass mixin will define CSS variables that are used for styling Angular Material
-// components according to the Material 3 design spec.
-// Learn more about theming and how to use it for your application's
-// custom components at https://material.angular.dev/guide/theming
 @use '@angular/material' as mat;
 
 html {
   height: 100%;
-  @include mat.theme(
-    (
-      color: (
-        primary: mat.$azure-palette,
-        tertiary: mat.$blue-palette,
-      ),
-      typography: Roboto,
-      density: 0,
-    )
-  );
-}
-
-body {
-  // Default the application to a light color theme. This can be changed to
-  // `dark` to enable the dark color theme, or to `light dark` to defer to the
-  // user's system settings.
   color-scheme: light;
-
-  // Set a default background, font and text colors for the application using
-  // Angular Material's system-level CSS variables. Learn more about these
-  // variables at https://material.angular.dev/guide/system-variables
-  background-color: var(--mat-sys-surface);
-  color: var(--mat-sys-on-surface);
-  font: var(--mat-sys-body-medium);
-
-  // Reset the user agent margin.
-  margin: 0;
-  height: 100%;
+  @include mat.theme((
+    color: (primary: mat.$azure-palette, tertiary: mat.$blue-palette),
+    typography: Roboto,
+    density: 0,
+  ));
 }
-/* You can add global styles to this file, and also import other style files */
+
+:root {
+  --primary: #1A73E8;
+  --accent: #FF6B35;
+  --bg: #FFFFFF;
+  --text: #1F2937;
+  --border: #D1D5DB;
+  --mat-sys-primary: var(--primary);
+  --mat-sys-on-primary: #FFFFFF;
+  --mat-sys-secondary: var(--accent);
+  --mat-sys-surface: var(--bg);
+  --mat-sys-on-surface: var(--text);
+  --mat-sys-outline: var(--border);
+  font-family: Roboto, Arial, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--bg); color: var(--text); }
+a { color: var(--primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.primary-action.mat-mdc-unelevated-button {
+  min-height: 48px;
+  color: #FFFFFF !important;
+  background: var(--accent) !important;
+  border-radius: 3px;
+  font-weight: 600;
+}
+.primary-action.mat-mdc-unelevated-button:hover { background: #ef5d2c !important; }
+.primary-action.mat-mdc-unelevated-button:disabled { opacity: .65; }
+
+.navbar {
+  min-height: 64px; display: flex; align-items: center; justify-content: space-between;
+  gap: 20px; padding: 10px clamp(18px, 6vw, 64px); border-bottom: 1px solid var(--border);
+}
+.navbar .brand { color: var(--text); font-size: 1.25rem; font-weight: 700; }
+.navbar nav { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.user-alias { font-size: .92rem; }
+.role-badge { padding: 4px 10px; border-radius: 999px; color: var(--primary); background: #e8f0fe; font-size: .82rem; }
+.nav-action { padding: 0 18px; }
+
+.auth-page { width: min(100% - 32px, 580px); margin: clamp(36px, 8vh, 80px) auto; }
+.register-page { width: min(100% - 32px, 760px); }
+.auth-card h1 { margin: 0 0 38px; color: var(--text); font-size: clamp(2rem, 5vw, 2.7rem); letter-spacing: -.03em; }
+.auth-card form { display: flex; flex-direction: column; gap: 12px; }
+.auth-card mat-form-field { width: 100%; }
+.auth-footer { margin-top: 42px; padding-top: 26px; border-top: 1px solid var(--border); font-size: .95rem; }
+.auth-footer a { margin-left: 5px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 20px; }
+.full-width { grid-column: 1 / -1; }
+.role-picker { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px; margin: 12px 0; padding: 0; border: 0; }
+.role-picker legend { margin: 0 16px 0 0; }
+.role-picker mat-radio-group { display: flex; flex-wrap: wrap; gap: 10px 22px; }
+.policy { margin: 10px 0 0; }
+.field-error { color: #b42318; font-size: .82rem; }
+
+.home-page { max-width: 60rem; margin: 10vh auto; padding: 2rem; }
+.home-page h1 { font-size: clamp(2rem, 6vw, 3.5rem); }
+.data-table { width: 100%; border: 1px solid var(--border); }
+.auction-status { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: .82rem; white-space: nowrap; }
+.status-programada { color: #7a4a00; background: #fff3cd; }
+.status-activa { color: #12643a; background: #d9fbe8; }
+.status-cerrada, .status-finalizada_sin_ganador { color: #344054; background: #eaecf0; }
+.status-cancelada { color: #912018; background: #fee4e2; }
+.field-error { display: block; margin-top: 5px; }
+
+@media (max-width: 640px) {
+  .navbar { align-items: flex-start; }
+  .navbar nav { justify-content: flex-end; gap: 6px; font-size: .9rem; }
+  .form-grid { grid-template-columns: 1fr; }
+  .full-width { grid-column: auto; }
+  .auth-card h1 { margin-bottom: 28px; }
+  .home-page { margin-top: 6vh; padding: 1.25rem; }
+}
