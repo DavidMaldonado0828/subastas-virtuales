@@ -68,6 +68,15 @@ El seed incluye solo esta cuenta. Su contraseña se configura localmente mediant
 
 El seed no crea cuentas de VENDEDOR ni POSTOR. Regístralas desde la aplicación para probar esos roles; el registro de POSTOR requiere aceptar la política vinculante de pujas.
 
+Para cargar el conjunto de productos y subastas de demostración cuando existan los alias requeridos:
+
+```powershell
+cd backend
+python -m scripts.seed_demo
+```
+
+Para restablecer solo los datos atribuibles a ese script, ejecuta `python -m scripts.seed_demo --reset` desde `backend/` y confirma escribiendo `BORRAR DEMO`. El seed no crea cuentas de VENDEDOR ni POSTOR.
+
 ## Pruebas
 
 Desde la raíz del repositorio, abre PowerShell:

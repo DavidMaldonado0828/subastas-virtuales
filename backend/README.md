@@ -33,6 +33,24 @@ uvicorn app.main:app --reload
 
 El seed requiere `SEED_ADMIN_PASSWORD` y crea el administrador inicial y categorías de muestra; es idempotente. La API queda disponible en `http://127.0.0.1:8000`, la documentación interactiva en `/docs` y el chequeo de salud en `/health`.
 
+### Datos de demostración
+
+Después de crear los usuarios de demo (el script no crea usuarios), carga productos y subastas de muestra con fechas relativas a UTC:
+
+```powershell
+python -m scripts.seed_demo
+```
+
+El seed requiere los alias existentes `carlos_antiguedades` (VENDEDOR), `mafe_gomez`, `juanse_mtz` y `David23` (POSTOR), y `admin_subastas` (ADMIN). Si falta alguno o su rol no coincide, informa y termina sin crearlo. Los productos se identifican por nombres reservados y una marca en la descripción para evitar duplicados.
+
+Para borrar únicamente datos identificables como creados por este script:
+
+```powershell
+python -m scripts.seed_demo --reset
+```
+
+El programa solicita escribir exactamente `BORRAR DEMO`. Si hay actividad o historial ajeno al seed asociado a un registro demo, lo conserva y lo informa.
+
 ## Endpoints implementados
 
 Las rutas de negocio están bajo `/api/v1`. Los roles son `VENDEDOR`, `POSTOR` y `ADMIN`.
