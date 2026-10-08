@@ -93,9 +93,9 @@ def update(session: Session, seller: User, product_id: int, payload: ProductPatc
 def delete(session: Session, seller: User, product_id: int) -> dict[str, int | str | None]:
     product = _owned(session, product_id, seller.user_id)
     auctions = product_repository.get_auctions(session, product_id)
-    blocking = [auction for auction in auctions if status_repository.get_status_code(session, auction.status_id) in ("ACTIVA", "CERRADA")]
-    if blocking:
-        raise HTTPException(status_code=409, detail="No se puede eliminar el producto porque tiene una subasta ACTIVA o CERRADA.")
+    auction_states = [(auction, status_repository.get_status_code(session, auction.status_id)) for auction in auctions]
+    if any(code == "ACTIVA" for _auction, code in auction_states):
+        raise HTTPException(status_code=409, detail="No se puede eliminar el producto porque tiene una subasta ACTIVA.")
     if not auctions:
         session.delete(product)
         session.commit()
@@ -109,10 +109,11 @@ def delete(session: Session, seller: User, product_id: int) -> dict[str, int | s
     record_status_change(session, entity_type="PRODUCT", entity_id=product_id,
         old_status_code=old_status, new_status_code="DESACTIVADO", changed_by=seller,
         event_source="API_DEACTIVATE_PRODUCT")
-    for auction in auctions:
-        old_auction_status = status_repository.get_status_code(session, auction.status_id)
+    for auction, old_auction_status in auction_states:
+        if old_auction_status != "PROGRAMADA":
+            continue
         cancelled = status_repository.get_status_for_entity(session, "CANCELADA", EntityType.AUCTION.value)
-        if old_auction_status != "PROGRAMADA" or cancelled is None:
+        if cancelled is None:
             session.rollback()
             raise HTTPException(status_code=503, detail="No fue posible actualizar el estado de la subasta.")
         auction.status_id = cancelled.status_id

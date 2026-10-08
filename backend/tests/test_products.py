@@ -36,12 +36,12 @@ def api(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient, sessionma
             if isinstance(row, StatusHistory) and row.history_id is None:
                 row.history_id = next_id
                 next_id += 1
-    status_codes = ["ACTIVO", "DESACTIVADO", "ACTIVA", "CERRADA", "PROGRAMADA", "CANCELADA", "DESACTIVADO_POR_INCUMPLIMIENTO"]
+    status_codes = ["ACTIVO", "DESACTIVADO", "ACTIVA", "CERRADA", "PROGRAMADA", "CANCELADA", "DESACTIVADO_POR_INCUMPLIMIENTO", "FINALIZADA_SIN_GANADOR"]
     with factory() as db:
         for i, code in enumerate(status_codes, 1):
             db.add(Status(status_id=i, code=code, name=code))
         db.flush()
-        for status_id, entity in [(1, "USER"), (1, "CATEGORY"), (1, "PRODUCT"), (2, "CATEGORY"), (2, "PRODUCT"), (7, "PRODUCT"), (3, "AUCTION"), (4, "AUCTION"), (5, "AUCTION"), (6, "AUCTION")]:
+        for status_id, entity in [(1, "USER"), (1, "CATEGORY"), (1, "PRODUCT"), (2, "CATEGORY"), (2, "PRODUCT"), (7, "PRODUCT"), (3, "AUCTION"), (4, "AUCTION"), (5, "AUCTION"), (6, "AUCTION"), (8, "AUCTION")]:
             db.add(StatusApplicability(status_id=status_id, entity_type=entity))
         db.add_all([
             User(user_id=1, status_id=1, role=UserRole.VENDEDOR, name="Vendedor", alias="seller", email="s@example.com", password_hash="x", phone_number="123"),
@@ -121,7 +121,7 @@ def test_patch_after_active_or_closed_and_delete_rules(api):
     assert client.patch(f"/api/v1/products/{product['product_id']}", json={"description": "Actualizada", "image_url": "https://example.test/i.jpg"}).status_code == 200
     assert client.patch(f"/api/v1/products/{product['product_id']}", json={"name": "No permitido"}).status_code == 409
     deleted = client.delete(f"/api/v1/products/{product['product_id']}")
-    assert deleted.status_code == 409 and "ACTIVA o CERRADA" in deleted.json()["detail"]
+    assert deleted.status_code == 409 and "subasta ACTIVA" in deleted.json()["detail"]
     fresh = client.post("/api/v1/products", json=payload(name="Sin subasta")).json()
     assert client.delete(f"/api/v1/products/{fresh['product_id']}").json()["result"] == "DELETED"
     with factory() as db:
@@ -146,6 +146,32 @@ def test_delete_product_with_scheduled_auction_cancels_both_and_records_history(
             ("PRODUCT", product["product_id"], "ACTIVO", "DESACTIVADO"),
             ("AUCTION", auction_id, "PROGRAMADA", "CANCELADA"),
         }
+
+
+@pytest.mark.parametrize(("status_id", "status_code"), [
+    (4, "CERRADA"), (8, "FINALIZADA_SIN_GANADOR"), (6, "CANCELADA"),
+])
+def test_delete_with_final_or_cancelled_auction_deactivates_product_without_changing_auction(api, status_id, status_code):
+    client, factory = api
+    product = client.post("/api/v1/products", json=payload()).json()
+    with factory() as db:
+        auction = Auction(product_id=product["product_id"], status_id=status_id,
+            base_price=Decimal("10.00"), minimum_increment=Decimal("1.00"),
+            start_date=datetime(2025, 1, 1), end_date=datetime(2025, 1, 2))
+        db.add(auction)
+        db.commit()
+        auction_id = auction.auction_id
+
+    response = client.delete(f"/api/v1/products/{product['product_id']}")
+    assert response.status_code == 200
+    assert response.json()["result"] == "DEACTIVATED"
+    assert response.json()["status"] == "DESACTIVADO"
+    with factory() as db:
+        assert db.get(Product, product["product_id"]).status_id == 2
+        assert db.get(Auction, auction_id).status_id == status_id
+        events = db.query(StatusHistory).all()
+        assert [(event.entity_type, event.entity_id, event.old_status_code, event.new_status_code)
+                for event in events] == [("PRODUCT", product["product_id"], "ACTIVO", "DESACTIVADO")]
 
 
 def test_reactivate_deactivated_product_and_keep_cancelled_auction(api):
