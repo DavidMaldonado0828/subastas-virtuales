@@ -1,4 +1,4 @@
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.models.auction import Auction
@@ -55,7 +55,8 @@ def has_bids(session: Session, auction_id: int) -> bool:
     return bool(session.scalar(select(Bid.bid_id).where(Bid.auction_id == auction_id).limit(1)))
 
 
-def public_rows(session: Session, *, limit: int, offset: int, auction_id: int | None = None):
+def public_rows(session: Session, *, limit: int, offset: int, auction_id: int | None = None,
+                status: str | None = None, now=None):
     leader = select(Bid.bid_id).where(Bid.auction_id == Auction.auction_id).order_by(
         Bid.amount.desc(), Bid.bid_date.asc(), Bid.bid_id.asc()
     ).limit(1).correlate(Auction).scalar_subquery()
@@ -73,7 +74,32 @@ def public_rows(session: Session, *, limit: int, offset: int, auction_id: int | 
     if auction_id is not None:
         query = query.where(Auction.auction_id == auction_id)
     else:
-        query = query.order_by(Auction.auction_id).limit(limit).offset(offset)
+        if now is None:
+            from datetime import UTC, datetime
+            now = datetime.now(UTC)
+        has_bid = select(Bid.bid_id).where(Bid.auction_id == Auction.auction_id).exists()
+        temporal_state = case(
+            (Auction.end_date <= now, case((has_bid, "CERRADA"), else_="FINALIZADA_SIN_GANADOR")),
+            (Auction.start_date <= now, "ACTIVA"),
+            else_="PROGRAMADA",
+        )
+        if status is None:
+            query = query.where(temporal_state.in_(("ACTIVA", "PROGRAMADA")))
+            ordering = case((temporal_state == "ACTIVA", 0), else_=1)
+            temporal_order = case(
+                (temporal_state == "ACTIVA", Auction.end_date),
+                else_=Auction.start_date,
+            )
+            query = query.order_by(ordering, temporal_order.asc(), Auction.auction_id.asc())
+        else:
+            query = query.where(temporal_state == status)
+            if status == "ACTIVA":
+                query = query.order_by(Auction.end_date.asc(), Auction.auction_id.asc())
+            elif status == "PROGRAMADA":
+                query = query.order_by(Auction.start_date.asc(), Auction.auction_id.asc())
+            else:
+                query = query.order_by(Auction.end_date.desc(), Auction.auction_id.desc())
+        query = query.limit(limit).offset(offset)
     return list(session.execute(query))
 
 

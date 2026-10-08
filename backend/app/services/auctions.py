@@ -58,9 +58,9 @@ def _catalog_item(row, now: datetime) -> AuctionCatalogItem:
     )
 
 #Obtiene una lista de subastas públicas, limitadas por la cantidad y el desplazamiento especificados.
-def list_public(session: Session, *, limit: int, offset: int) -> AuctionCatalogPage:
+def list_public(session: Session, *, limit: int, offset: int, status: str | None = None) -> AuctionCatalogPage:
     now = datetime.now(UTC)
-    rows = auction_repository.public_rows(session, limit=limit, offset=offset)
+    rows = auction_repository.public_rows(session, limit=limit, offset=offset, status=status, now=now)
     return AuctionCatalogPage(items=[_catalog_item(row, now) for row in rows], limit=limit, offset=offset)
 
 #Devuelve los detalles públicos de una subasta específica, incluyendo el producto, el estado, la puja líder y el ganador si corresponde.
@@ -192,13 +192,16 @@ def place_bid(session: Session, participant: User, auction_id: int, payload: Bid
         raise
 
 #Muestra las subastas en las que un participante ha pujado, con paginación y detalles de cada subasta, incluyendo el estado, la puja más alta del participante y la puja líder.
-def list_my_auctions(session: Session, participant: User, *, limit: int, offset: int) -> MyAuctionPage:
-    rows = bid_repository.my_auction_rows(session, participant.user_id, limit=limit, offset=offset)
+def list_my_auctions(session: Session, participant: User, *, limit: int, offset: int,
+                     status: str | None = None) -> MyAuctionPage:
+    now = datetime.now(UTC)
+    rows = bid_repository.my_auction_rows(session, participant.user_id, limit=limit, offset=offset,
+                                          status=status, now=now)
     items = []
     for auction, product, _category, status_code, highest, leader_amount in rows:
         # El estado refleja las fechas incluso antes de que el programador actualice el estado almacenado.
-        state = status_code if status_code in {"CANCELADA", "CERRADA", "FINALIZADA_SIN_GANADOR"} else calculate_status(
-            auction.start_date, auction.end_date, datetime.now(UTC), has_bids=leader_amount is not None)
+        state = status_code if status_code == "CANCELADA" else calculate_status(
+            auction.start_date, auction.end_date, now, has_bids=leader_amount is not None)
         items.append(MyAuctionItem(auction_id=auction.auction_id, product_name=product.name,
             status=state, my_highest_bid=highest, leader_amount=leader_amount,
             is_leader=leader_amount == highest and bid_repository.leader(session, auction.auction_id).participant_id == participant.user_id))

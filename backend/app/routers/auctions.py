@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
+from typing import Literal
 
 from app.api.deps import get_optional_current_user, require_role
 from app.core.enums import UserRole
@@ -9,15 +10,17 @@ from app.schemas.auctions import AuctionCatalogPage, AuctionCreate, AuctionPatch
 from app.services import auctions as auction_service
 
 router = APIRouter(prefix="/auctions", tags=["auctions"])
+CatalogStatus = Literal["PROGRAMADA", "ACTIVA", "CERRADA", "FINALIZADA_SIN_GANADOR"]
 
 
 @router.get("", response_model=AuctionCatalogPage)
 def public_auction_catalog(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    status: CatalogStatus | None = Query(default=None),
     session: Session = Depends(get_db),
 ) -> AuctionCatalogPage:
-    return auction_service.list_public(session, limit=limit, offset=offset)
+    return auction_service.list_public(session, limit=limit, offset=offset, status=status)
 
 
 @router.get("/{auction_id}", response_model=AuctionPublicDetail)

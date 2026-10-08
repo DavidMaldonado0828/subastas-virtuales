@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 import { ApiErrorService } from '../services/api-error.service';
+import { isPublicAuctionRead } from './public-auction-read';
 
 // Cierra sesiones inválidas y presenta los mensajes de error de la API.
 export const errorInterceptor: HttpInterceptorFn = (request, next) => {
@@ -13,9 +14,13 @@ export const errorInterceptor: HttpInterceptorFn = (request, next) => {
 
   return next(request).pipe(catchError((error: HttpErrorResponse) => {
     if (error.status === 401) {
-      auth.logout(false);
-      void router.navigate(['/login']);
-      messages.show(apiDetail(error) ?? 'La sesión no es válida. Inicia sesión de nuevo.');
+      if (isPublicAuctionRead(request)) {
+        messages.show(apiDetail(error) ?? 'No se pudo consultar la información pública de la subasta.');
+      } else {
+        auth.logout(false);
+        void router.navigate(['/login']);
+        messages.show(apiDetail(error) ?? 'La sesión no es válida. Inicia sesión de nuevo.');
+      }
     } else if (error.status === 422) {
       messages.show(validationMessage(error));
     } else {

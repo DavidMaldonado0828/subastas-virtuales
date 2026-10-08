@@ -134,6 +134,42 @@ def test_public_catalog_without_token_and_excludes_cancelled(auction_api):
     assert client.get("/api/v1/auctions?limit=101").status_code == 422
 
 
+def test_public_catalog_defaults_filters_orders_and_paginates(auction_api):
+    client, factory = auction_api
+    now = datetime.now(UTC)
+    with factory() as db:
+        rows = [
+            Auction(product_id=1, status_id=4, base_price=Decimal("100"), minimum_increment=Decimal("5"), start_date=now-timedelta(hours=1), end_date=now+timedelta(hours=2)),
+            Auction(product_id=2, status_id=4, base_price=Decimal("100"), minimum_increment=Decimal("5"), start_date=now-timedelta(hours=1), end_date=now+timedelta(hours=1)),
+            Auction(product_id=1, status_id=3, base_price=Decimal("100"), minimum_increment=Decimal("5"), start_date=now+timedelta(hours=2), end_date=now+timedelta(hours=3)),
+            Auction(product_id=2, status_id=3, base_price=Decimal("100"), minimum_increment=Decimal("5"), start_date=now+timedelta(hours=1), end_date=now+timedelta(hours=4)),
+            Auction(product_id=1, status_id=4, base_price=Decimal("100"), minimum_increment=Decimal("5"), start_date=now-timedelta(days=2), end_date=now-timedelta(hours=1)),
+            Auction(product_id=2, status_id=3, base_price=Decimal("100"), minimum_increment=Decimal("5"), start_date=now-timedelta(days=2), end_date=now-timedelta(hours=2)),
+            Auction(product_id=1, status_id=7, base_price=Decimal("100"), minimum_increment=Decimal("5"), start_date=now-timedelta(hours=1), end_date=now+timedelta(hours=1)),
+        ]
+        db.add_all(rows)
+        db.flush()
+        ids = [row.auction_id for row in rows]
+        db.add(Bid(auction_id=ids[4], participant_id=3, amount=Decimal("110")))
+        db.commit()
+    client.headers.pop("Authorization")
+
+    default = client.get("/api/v1/auctions").json()["items"]
+    assert [row["id"] for row in default] == [ids[1], ids[0], ids[3], ids[2]]
+    active = client.get("/api/v1/auctions?status=ACTIVA").json()["items"]
+    assert [row["id"] for row in active] == [ids[1], ids[0]]
+    upcoming = client.get("/api/v1/auctions?status=PROGRAMADA").json()["items"]
+    assert [row["id"] for row in upcoming] == [ids[3], ids[2]]
+    closed = client.get("/api/v1/auctions?status=CERRADA").json()["items"]
+    assert [row["id"] for row in closed] == [ids[4]]
+    no_bids = client.get("/api/v1/auctions?status=FINALIZADA_SIN_GANADOR").json()["items"]
+    assert [row["id"] for row in no_bids] == [ids[5]]
+    page = client.get("/api/v1/auctions?status=ACTIVA&limit=1&offset=1").json()["items"]
+    assert [row["id"] for row in page] == [ids[0]]
+    assert ids[6] not in [row["id"] for row in default + active + upcoming + closed + no_bids]
+    assert client.get("/api/v1/auctions?status=CANCELADA").status_code == 422
+
+
 def test_public_detail_has_leader_alias_without_personal_data(auction_api):
     client, factory = auction_api
     created = client.post("/api/v1/auctions", json=create_payload()).json()

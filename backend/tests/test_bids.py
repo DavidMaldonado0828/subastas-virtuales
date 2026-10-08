@@ -46,6 +46,34 @@ def test_bid_minimum_equal_leader_self_and_my_auctions(auction_api):
     assert mine.status_code == 200 and mine.json()["items"][0]["my_highest_bid"] == "105.00"
 
 
+def test_my_auctions_status_filter_and_active_first_order(auction_api):
+    client, factory = auction_api
+    now = datetime.now(UTC)
+    with factory() as db:
+        rows = [
+            Auction(product_id=1, status_id=4, base_price=Decimal("100"), minimum_increment=Decimal("5"), start_date=now-timedelta(hours=1), end_date=now+timedelta(hours=2), created_at=now-timedelta(days=4)),
+            Auction(product_id=2, status_id=3, base_price=Decimal("100"), minimum_increment=Decimal("5"), start_date=now+timedelta(hours=1), end_date=now+timedelta(hours=2), created_at=now-timedelta(days=1)),
+            Auction(product_id=1, status_id=4, base_price=Decimal("100"), minimum_increment=Decimal("5"), start_date=now-timedelta(days=2), end_date=now-timedelta(hours=1), created_at=now-timedelta(days=3)),
+            Auction(product_id=2, status_id=7, base_price=Decimal("100"), minimum_increment=Decimal("5"), start_date=now-timedelta(days=2), end_date=now+timedelta(hours=2), created_at=now),
+        ]
+        db.add_all(rows)
+        db.flush()
+        ids = [row.auction_id for row in rows]
+        db.add_all([Bid(auction_id=aid, participant_id=3, amount=Decimal("110")) for aid in ids])
+        db.commit()
+    headers = {"Authorization": f"Bearer {_token()}"}
+
+    all_items = client.get("/api/v1/me/auctions", headers=headers).json()["items"]
+    assert [item["auction_id"] for item in all_items] == [ids[0], ids[3], ids[1], ids[2]]
+    active = client.get("/api/v1/me/auctions?status=ACTIVA", headers=headers).json()["items"]
+    assert [item["auction_id"] for item in active] == [ids[0]]
+    closed = client.get("/api/v1/me/auctions?status=CERRADA", headers=headers).json()["items"]
+    assert [item["auction_id"] for item in closed] == [ids[2]]
+    cancelled = client.get("/api/v1/me/auctions?status=CANCELADA", headers=headers).json()["items"]
+    assert [item["auction_id"] for item in cancelled] == [ids[3]]
+    assert client.get("/api/v1/me/auctions?status=INVALIDO", headers=headers).status_code == 422
+
+
 def test_self_leader_policy_role_token_and_state_errors(auction_api):
     client, factory = auction_api
     aid=_active_auction(factory)

@@ -13,7 +13,9 @@ import { ConfirmDialogComponent } from '../components/confirm-dialog.component';
     <header class="navbar">
       <a class="brand" routerLink="/">Subastas</a>
       <nav aria-label="Navegación principal">
+        <a mat-button routerLink="/subastas">Subastas</a>
         @if (auth.user(); as user) {
+          @if (user.role === 'POSTOR') { <a mat-button routerLink="/postor/mis-subastas">Mis subastas</a> }
           <span class="user-alias">{{ user.alias }}</span>
           <span class="role-badge">{{ roleNames[user.role] }}</span>
           <button mat-button type="button" (click)="confirmLogout()">Cerrar sesión</button>
