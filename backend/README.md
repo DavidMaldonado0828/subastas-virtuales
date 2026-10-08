@@ -1,6 +1,6 @@
 # Backend — Sistema de Subastas Virtuales
 
-API MVP construida con FastAPI, Pydantic v2, SQLAlchemy 2 y PostgreSQL. Los endpoints de negocio implementados cubren autenticación, productos del vendedor, catálogo y detalle de subastas, pujas e historial.
+API MVP construida con FastAPI, Pydantic v2, SQLAlchemy 2 y PostgreSQL. Los endpoints implementados cubren autenticación, productos del vendedor, catálogo y detalle de subastas, pujas e historial, gestión administrativa de usuarios/subastas y consulta de subastas del vendedor.
 
 ## Requisitos y configuración
 
@@ -48,14 +48,21 @@ Las rutas de negocio están bajo `/api/v1`. Los roles son `VENDEDOR`, `POSTOR` y
 | `PATCH` | `/api/v1/products/{product_id}` | `VENDEDOR` propietario |
 | `DELETE` | `/api/v1/products/{product_id}` | `VENDEDOR` propietario |
 | `POST` | `/api/v1/products/{product_id}/reactivate` | `VENDEDOR` propietario |
-| `GET` | `/api/v1/auctions` | Público |
+| `GET` | `/api/v1/auctions` | Público; filtro opcional `status` |
 | `GET` | `/api/v1/auctions/{auction_id}` | Público |
 | `POST` | `/api/v1/auctions` | `VENDEDOR` |
 | `PATCH` | `/api/v1/auctions/{auction_id}` | `VENDEDOR` propietario |
 | `POST` | `/api/v1/auctions/{auction_id}/bids` | `POSTOR` |
 | `GET` | `/api/v1/auctions/{auction_id}/bids` | Público: primeros 5 registros; `VENDEDOR` propietario o `ADMIN`: paginación completa |
-| `GET` | `/api/v1/me/auctions` | `POSTOR` |
+| `GET` | `/api/v1/me/auctions` | `POSTOR`; filtro opcional `status` |
+| `GET` | `/api/v1/me/seller/auctions` | `VENDEDOR` |
+| `GET` | `/api/v1/admin/auctions` | `ADMIN`; filtros opcionales `status`, `limit`, `offset` |
+| `POST` | `/api/v1/admin/auctions/{auction_id}/cancel` | `ADMIN` |
+| `GET` | `/api/v1/admin/users` | `ADMIN`; búsqueda `search` por alias/email y filtro opcional `status` |
+| `PATCH` | `/api/v1/admin/users/{user_id}/status` | `ADMIN` |
 | `GET` | `/health` | Público |
+
+El catálogo público acepta `PROGRAMADA`, `ACTIVA`, `CERRADA` o `FINALIZADA_SIN_GANADOR` en `status`. Sin filtro devuelve únicamente subastas `ACTIVA` y `PROGRAMADA`; nunca incluye `CANCELADA`. El servidor ordena por estado y fecha antes de aplicar la paginación.
 
 Las rutas de productos del vendedor devuelven únicamente recursos de su propiedad. El registro de Postor requiere aceptar la política de pujas. El historial público de pujas expone alias, monto y fecha; no datos personales.
 
@@ -66,13 +73,15 @@ Las rutas de productos del vendedor devuelven únicamente recursos de su propied
 - La creación de pujas se procesa en una transacción con bloqueo de fila de la subasta (`FOR UPDATE`) para serializar pujas concurrentes.
 - Al cerrar con pujas válidas, la puja más alta determina al ganador; al cerrar sin pujas el estado es `FINALIZADA_SIN_GANADOR`.
 - Las respuestas públicas de subastas e historial identifican usuarios únicamente mediante alias. No exponen datos personales ni contraseñas.
+- `DELETE /api/v1/products/{product_id}` elimina físicamente el producto si no tiene subastas. Si tiene una subasta `ACTIVA`, responde `409`; si tiene subastas `PROGRAMADA`, desactiva el producto y cancela esas subastas. Si solo tiene historial `CERRADA`, `FINALIZADA_SIN_GANADOR` o `CANCELADA`, desactiva el producto y conserva las subastas sin cambios. Los cambios de estado quedan registrados en `status_history`; la respuesta incluye `result` y `status`.
+- El listado de subastas del vendedor está paginado y limitado a sus productos. El listado administrativo permite consultar todos los estados; la cancelación administrativa conserva las pujas y registra motivo, fecha y responsable en una transacción.
 
 ## Pruebas
 
 Desde `backend/`, ejecuta la suite con:
 
 ```powershell
-pytest
+pytest -q
 ```
 
 El script `backend/scripts/concurrency_test.py` envía pujas simultáneas con el mismo monto a una subasta existente. Con la API en ejecución, desde `backend/` puedes invocarlo así:
