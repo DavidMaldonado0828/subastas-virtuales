@@ -11,11 +11,21 @@ import { ConfirmDialogComponent } from '../components/confirm-dialog.component';
   imports: [RouterLink, MatButtonModule, MatDialogModule],
   template: `
     <header class="navbar">
-      <a class="brand" routerLink="/">Subastas</a>
+      <a class="brand" routerLink="/" aria-label="SubastaX, inicio">
+        <img src="/logo-subastax.png" alt="SubastaX">
+      </a>
       <nav aria-label="Navegación principal">
         <a mat-button routerLink="/subastas">Subastas</a>
         @if (auth.user(); as user) {
           @if (user.role === 'POSTOR') { <a mat-button routerLink="/postor/mis-subastas">Mis subastas</a> }
+          @if (user.role === 'VENDEDOR') {
+            <a mat-button routerLink="/vendedor/productos">Mis productos</a>
+            <a mat-button routerLink="/vendedor/subastas">Mis subastas</a>
+          }
+          @if (user.role === 'ADMIN') {
+            <a mat-button routerLink="/admin/subastas">Subastas admin</a>
+            <a mat-button routerLink="/admin/usuarios">Usuarios</a>
+          }
           <span class="user-alias">{{ user.alias }}</span>
           <span class="role-badge">{{ roleNames[user.role] }}</span>
           <button mat-button type="button" (click)="confirmLogout()">Cerrar sesión</button>

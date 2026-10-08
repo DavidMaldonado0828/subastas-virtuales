@@ -9,8 +9,8 @@ export class BidsService {
   constructor(private readonly http: HttpClient) {}
 
   /** Recupera las cinco pujas públicas más altas de la subasta. */
-  history(auctionId: number): Observable<BidHistoryPage> {
-    const params = new HttpParams().set('limit', 5).set('offset', 0);
+  history(auctionId: number, limit = 5, offset = 0): Observable<BidHistoryPage> {
+    const params = new HttpParams().set('limit', limit).set('offset', offset);
     return this.http.get<BidHistoryPage>(`${environment.apiUrl}/auctions/${auctionId}/bids`, { params });
   }
 

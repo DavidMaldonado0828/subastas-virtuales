@@ -1,0 +1,17 @@
+:host { display: flex; min-height: 100vh; flex-direction: column; }
+
+.site-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: auto;
+  padding: 22px 20px;
+  border-top: 1px solid var(--border);
+  color: #667085;
+  text-align: center;
+  font-size: .9rem;
+}
+
+.site-footer p { margin: 0; }
+.site-footer .technologies { font-size: .82rem; }

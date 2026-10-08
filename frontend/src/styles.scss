@@ -46,7 +46,8 @@ a:hover { text-decoration: underline; }
   min-height: 64px; display: flex; align-items: center; justify-content: space-between;
   gap: 20px; padding: 10px clamp(18px, 6vw, 64px); border-bottom: 1px solid var(--border);
 }
-.navbar .brand { color: var(--text); font-size: 1.25rem; font-weight: 700; }
+.navbar .brand { display: inline-flex; flex: 0 0 auto; align-items: center; width: 220px; height: 58px; overflow: hidden; }
+.navbar .brand img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; }
 .navbar nav { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
 .user-alias { font-size: .92rem; }
 .role-badge { padding: 4px 10px; border-radius: 999px; color: var(--primary); background: #e8f0fe; font-size: .82rem; }
@@ -78,7 +79,8 @@ a:hover { text-decoration: underline; }
 .field-error { display: block; margin-top: 5px; }
 
 @media (max-width: 640px) {
-  .navbar { align-items: flex-start; }
+  .navbar { align-items: center; }
+  .navbar .brand { width: 148px; height: 46px; }
   .navbar nav { justify-content: flex-end; gap: 6px; font-size: .9rem; }
   .form-grid { grid-template-columns: 1fr; }
   .full-width { grid-column: auto; }
