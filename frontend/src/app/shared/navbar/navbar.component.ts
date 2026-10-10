@@ -11,11 +11,11 @@ import { ConfirmDialogComponent } from '../components/confirm-dialog.component';
   imports: [RouterLink, RouterLinkActive, MatButtonModule, MatDialogModule],
   template: `
     <header class="navbar">
-      <a class="brand" routerLink="/" routerLinkActive="nav-active" ariaCurrentWhenActive="page" aria-label="SubastaX, inicio">
+      <a class="brand" routerLink="/" aria-label="SubastaX, inicio">
         <img src="/logo-subastax.png" alt="SubastaX">
       </a>
       <nav aria-label="Navegación principal">
-        <a mat-button routerLink="/subastas" routerLinkActive="nav-active" ariaCurrentWhenActive="page">Subastas</a>
+        <a mat-button routerLink="/subastas" routerLinkActive="nav-active" ariaCurrentWhenActive="page">Catálogo</a>
         @if (auth.user(); as user) {
           @if (user.role === 'POSTOR') { <a mat-button routerLink="/postor/mis-subastas" routerLinkActive="nav-active" ariaCurrentWhenActive="page">Mis subastas</a> }
           @if (user.role === 'VENDEDOR') {
@@ -28,8 +28,8 @@ import { ConfirmDialogComponent } from '../components/confirm-dialog.component';
             <a mat-button routerLink="/admin/categorias" routerLinkActive="nav-active" ariaCurrentWhenActive="page">Categorías</a>
           }
           <span class="user-alias">{{ user.alias }}</span>
-          <span class="role-badge">{{ roleNames[user.role] }}</span>
-          <button mat-button type="button" (click)="confirmLogout()">Cerrar sesión</button>
+          <span class="role-badge" [class.role-vendedor]="user.role === 'VENDEDOR'" [class.role-postor]="user.role === 'POSTOR'" [class.role-admin]="user.role === 'ADMIN'">{{ roleNames[user.role] }}</span>
+          <button mat-button class="logout-button" type="button" (click)="confirmLogout()">Cerrar sesión</button>
         } @else {
           <a mat-button routerLink="/login" routerLinkActive="nav-active" ariaCurrentWhenActive="page">Iniciar sesión</a>
           <a mat-flat-button class="primary-action nav-action" routerLink="/registro" routerLinkActive="nav-active" ariaCurrentWhenActive="page">Registrarse</a>

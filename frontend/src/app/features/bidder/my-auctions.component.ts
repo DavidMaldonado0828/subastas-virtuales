@@ -36,7 +36,7 @@ import { MyAuctionStatus } from '../../core/services/auctions.service';
       } @else {
         <section class="my-auctions-grid">
           @for (auction of items(); track auction.auction_id) {
-            <mat-card>
+            <mat-card class="my-auction-card">
               <mat-card-content>
                 <div class="card-heading">
                   <h2>{{ auction.product_name }}</h2>
@@ -44,6 +44,7 @@ import { MyAuctionStatus } from '../../core/services/auctions.service';
                 </div>
                 <p><span>Mi puja más alta</span><strong>{{ auction.my_highest_bid | cop }}</strong></p>
                 <p><span>Líder actual</span><strong>{{ auction.leader_amount | cop }}</strong></p>
+                <div class="badge-slot">
                 @if (auction.status === 'ACTIVA' || auction.status === 'CERRADA' || auction.status === 'CANCELADA') {
                   <span class="result-badge"
                     [class.success-badge]="auction.status === 'ACTIVA' ? auction.is_leader : auction.status === 'CERRADA' && auction.is_leader"
@@ -52,8 +53,9 @@ import { MyAuctionStatus } from '../../core/services/auctions.service';
                     {{ participationLabel(auction.status, auction.is_leader) }}
                   </span>
                 }
+                </div>
                 @if (auction.status !== 'CANCELADA') {
-                  <a mat-stroked-button [routerLink]="['/subastas', auction.auction_id]" [state]="{ returnUrl: '/postor/mis-subastas' }">Ver subasta</a>
+                  <a mat-button class="table-action card-action" [routerLink]="['/subastas', auction.auction_id]" [state]="{ returnUrl: '/postor/mis-subastas' }">Ver subasta</a>
                 }
               </mat-card-content>
             </mat-card>
@@ -66,11 +68,11 @@ import { MyAuctionStatus } from '../../core/services/auctions.service';
     .my-auctions-page { width: min(100% - 32px, 1000px); margin: 32px auto; }
     .error-message { color: #b42318; }
     h1 { margin-bottom: 24px; font-size: 2rem; }
-    .my-auctions-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .my-auctions-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows:1fr; gap: 18px; align-items:stretch; }.my-auctions-grid mat-card { height:100%; }.my-auctions-grid mat-card-content { display:flex; flex-direction:column; flex:1; }
     .card-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
     h2 { margin: 0 0 18px; font-size: 1.15rem; }
     p { display: flex; justify-content: space-between; gap: 12px; }
-    .result-badge { display: inline-flex; width: fit-content; margin: 4px 0 12px; padding: 5px 10px; border-radius: 999px; font-size: .85rem; font-weight: 600; }
+    .badge-slot { min-height:42px; display:flex; align-items:flex-start; }.result-badge { display: inline-flex; width: fit-content; margin: 4px 0 12px; padding: 5px 10px; border-radius: 999px; font-size: .85rem; font-weight: 600; }.card-action { margin-top:auto; align-self:flex-start; }
     .success-badge { color: #12643a; background: #dcfce7; }
     .loss-badge { color: #9a3412; background: #ffedd5; }
     .cancelled-badge { color: #475467; background: #eaecf0; }
@@ -94,7 +96,7 @@ export class MyAuctionsComponent implements OnInit {
   }
 
   protected participationLabel(status: MyAuctionItem['status'], isLeader: boolean): string {
-    if (status === 'CANCELADA') return 'Cancelada';
+    if (status === 'CANCELADA') return 'Cancelada por la administración';
     if (status === 'ACTIVA') return isLeader ? 'Vas ganando' : 'Te superaron';
     if (status === 'CERRADA') return isLeader ? 'Ganaste' : 'Perdiste';
     return '';

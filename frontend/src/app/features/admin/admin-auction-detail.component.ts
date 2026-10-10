@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -13,12 +12,12 @@ import { CancelAuctionDialogComponent } from './cancel-auction-dialog.component'
 
 @Component({
   selector: 'app-admin-auction-detail', standalone: true,
-  imports: [DatePipe, RouterLink, MatButtonModule, MatDialogModule, MatTableModule, AuctionStatusBadgeComponent, CopPipe],
+  imports: [RouterLink, MatButtonModule, MatDialogModule, MatTableModule, AuctionStatusBadgeComponent, CopPipe],
   template: `
     <main class="admin-page">
       <header class="heading"><div><h1>Detalle de subasta</h1><p>Información administrativa completa de la subasta.</p></div>
-        <div class="heading-actions"><a mat-stroked-button routerLink="/admin/subastas">Volver a subastas</a>
-          @if (detail(); as auction) { @if (canCancel(auction)) { <button mat-flat-button class="primary-action" type="button" [disabled]="busy()" (click)="cancel()">Cancelar</button> } }
+        <div class="heading-actions"><a mat-button class="table-action" routerLink="/admin/subastas">Volver a subastas</a>
+          @if (detail(); as auction) { @if (canCancel(auction)) { <button mat-button class="table-action action-danger" type="button" [disabled]="busy()" (click)="cancel()">Cancelar</button> } }
         </div>
       </header>
       @if (loading()) { <p role="status">Cargando detalle…</p> }
@@ -33,14 +32,14 @@ import { CancelAuctionDialogComponent } from './cancel-auction-dialog.component'
         </section>
         <section class="card"><h2>Subasta</h2>
           <dl class="details"><div><dt>Precio base</dt><dd>{{ auction.base_price | cop }}</dd></div><div><dt>Incremento mínimo</dt><dd>{{ auction.minimum_increment | cop }}</dd></div>
-            <div><dt>Inicio</dt><dd>{{ auction.start_date | date:'medium' }}</dd></div><div><dt>Cierre</dt><dd>{{ auction.end_date | date:'medium' }}</dd></div>
+            <div><dt>Inicio</dt><dd class="date-line">{{ formatDate(auction.start_date) }}</dd></div><div><dt>Cierre</dt><dd class="date-line">{{ formatDate(auction.end_date) }}</dd></div>
             <div><dt>Cantidad de pujas</dt><dd>{{ auction.bid_count }}</dd></div><div><dt>Líder</dt><dd>@if (auction.leader_bid; as leader) { {{ leader.bidder_alias }} · {{ leader.amount | cop }} } @else { Sin pujas }</dd></div>
             @if (auction.winner; as winner) { <div><dt>Ganador</dt><dd>{{ winner.alias }} · {{ winner.amount | cop }}</dd></div> }
           </dl>
         </section>
         @if (auction.cancellation; as cancellation) {
           <section class="card cancellation"><h2>Cancelación</h2><p><strong>Motivo:</strong> {{ cancellation.reason }}</p>
-            <p><strong>Fecha:</strong> {{ cancellation.cancelled_at | date:'medium' }}</p><p><strong>Administrador:</strong> {{ cancellation.admin_alias }}</p>
+            <p><strong>Fecha:</strong> {{ formatDate(cancellation.cancelled_at) }}</p><p><strong>Administrador:</strong> {{ cancellation.admin_alias }}</p>
           </section>
         }
         <section class="card"><h2>Historial de estados</h2>
@@ -50,7 +49,7 @@ import { CancelAuctionDialogComponent } from './cancel-auction-dialog.component'
             <ng-container matColumnDef="new"><th mat-header-cell *matHeaderCellDef>Nuevo</th><td mat-cell *matCellDef="let event">{{ event.new_status_code }}</td></ng-container>
             <ng-container matColumnDef="source"><th mat-header-cell *matHeaderCellDef>Origen</th><td mat-cell *matCellDef="let event">{{ event.event_source }}</td></ng-container>
             <ng-container matColumnDef="who"><th mat-header-cell *matHeaderCellDef>Quién</th><td mat-cell *matCellDef="let event">{{ event.changed_by_alias || 'Sistema' }}</td></ng-container>
-            <ng-container matColumnDef="date"><th mat-header-cell *matHeaderCellDef>Fecha</th><td mat-cell *matCellDef="let event">{{ event.changed_at | date:'medium' }}</td></ng-container>
+            <ng-container matColumnDef="date"><th mat-header-cell *matHeaderCellDef>Fecha</th><td mat-cell *matCellDef="let event">{{ formatDate(event.changed_at) }}</td></ng-container>
             <tr mat-header-row *matHeaderRowDef="historyColumns"></tr><tr mat-row *matRowDef="let row; columns: historyColumns"></tr>
           </table></div> }
         </section>
@@ -63,7 +62,7 @@ import { CancelAuctionDialogComponent } from './cancel-auction-dialog.component'
             <ng-container matColumnDef="email"><th mat-header-cell *matHeaderCellDef>Correo</th><td mat-cell *matCellDef="let bid">{{ bid.bidder_email }}</td></ng-container>
             <ng-container matColumnDef="phone"><th mat-header-cell *matHeaderCellDef>Teléfono</th><td mat-cell *matCellDef="let bid">{{ bid.bidder_phone_number }}</td></ng-container>
             <ng-container matColumnDef="amount"><th mat-header-cell *matHeaderCellDef>Monto</th><td mat-cell *matCellDef="let bid">{{ bid.amount | cop }}</td></ng-container>
-            <ng-container matColumnDef="date"><th mat-header-cell *matHeaderCellDef>Fecha</th><td mat-cell *matCellDef="let bid">{{ bid.bid_date | date:'medium' }}</td></ng-container>
+            <ng-container matColumnDef="date"><th mat-header-cell *matHeaderCellDef>Fecha</th><td mat-cell *matCellDef="let bid">{{ formatDate(bid.bid_date) }}</td></ng-container>
             <tr mat-header-row *matHeaderRowDef="bidColumns"></tr><tr mat-row *matRowDef="let row; columns: bidColumns"></tr>
           </table></div>
           <nav class="pagination" aria-label="Paginación de pujas"><button mat-stroked-button [disabled]="bidOffset() === 0 || bidsLoading()" (click)="previousBids()">Anterior</button>
@@ -74,7 +73,7 @@ import { CancelAuctionDialogComponent } from './cancel-auction-dialog.component'
     </main>
   `,
   styles: `
-    .admin-page { width: min(100% - 32px, 1200px); margin: 30px auto; }.heading,.section-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; }.heading { margin-bottom:22px; }.heading h1,.section-heading h2 { margin:0; }.heading p { color:#667085; }.heading-actions { display:flex; gap:10px; flex-wrap:wrap; }.card { margin:16px 0; padding:20px; border:1px solid var(--border); border-radius:10px; background:#fff; }.card h2 { margin-top:0; }.card h3 { margin-bottom:8px; }.details { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px 20px; margin:14px 0 0; }.details dt { color:#667085; font-size:.9rem; }.details dd { margin:4px 0 0; overflow-wrap:anywhere; }.cancellation { border-color:#f0b8a5; }.table-scroll { overflow-x:auto; border:1px solid var(--border); }table { width:100%; min-width:760px; }.pagination { display:flex; justify-content:center; align-items:center; gap:16px; margin:20px 0 0; }.empty { padding:24px; text-align:center; }
+    .admin-page { width: min(100% - 32px, 1200px); margin: 30px auto; }.heading,.section-heading { display:flex; justify-content:space-between; align-items:center; gap:16px; }.heading { margin-bottom:22px; }.heading h1,.section-heading h2 { margin:0; }.heading p { color:#667085; }.heading-actions { display:flex; gap:10px; flex-wrap:wrap; }.card { margin:16px 0; padding:20px; border:1px solid var(--border); border-radius:10px; background:#fff; }.card h2 { margin-top:0; }.card h3 { margin-bottom:8px; }.details { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px 20px; margin:14px 0 0; }.details dt { color:#667085; font-size:.9rem; }.details dd { margin:4px 0 0; overflow-wrap:anywhere; }.details dd.date-line { white-space:nowrap; }.cancellation { border-color:#f0b8a5; }.table-scroll { overflow-x:auto; border:1px solid var(--border); }table { width:100%; min-width:760px; }.pagination { display:flex; justify-content:center; align-items:center; gap:16px; margin:20px 0 0; }.empty { padding:24px; text-align:center; }
     @media(max-width:620px) { .heading { align-items:flex-start; flex-direction:column; }.card { padding:14px; } }
   `,
 })
@@ -93,6 +92,9 @@ export class AdminAuctionDetailComponent implements OnInit {
   protected readonly bidLimit = 10;
   protected readonly historyColumns = ['old', 'new', 'source', 'who', 'date'];
   protected readonly bidColumns = ['alias', 'name', 'email', 'phone', 'amount', 'date'];
+  private readonly dateFormatter = new Intl.DateTimeFormat('es-CO', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit',
+  });
 
   ngOnInit(): void { this.load(); this.loadBids(); }
 
@@ -110,6 +112,7 @@ export class AdminAuctionDetailComponent implements OnInit {
   }
 
   protected canCancel(auction: AdminAuctionDetail): boolean { return auction.status === 'PROGRAMADA' || auction.status === 'ACTIVA'; }
+  protected formatDate(value: string): string { return this.dateFormatter.format(new Date(value)); }
 
   protected cancel(): void {
     const auction = this.detail();

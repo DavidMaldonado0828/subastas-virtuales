@@ -18,7 +18,7 @@ import { AuctionStatus } from '../../core/models/auctions.model';
   imports: [RouterLink, MatButtonModule, MatCardModule, MatTabsModule, AuctionStatusBadgeComponent, CopPipe],
   template: `
     <main class="catalog-page">
-      <h1>Subastas</h1>
+      <h1>Catálogo de subastas</h1>
       <mat-tab-group [selectedIndex]="tabIndex()" (selectedTabChange)="selectTab($event.index)">
         <mat-tab label="Disponibles"></mat-tab>
         <mat-tab label="Cerradas"></mat-tab>
@@ -39,7 +39,7 @@ import { AuctionStatus } from '../../core/models/auctions.model';
               } @else {
                 <div class="image-placeholder" aria-hidden="true">Sin imagen</div>
               }
-              <mat-card-content>
+              <mat-card-content class="card-content">
                 <div class="card-topline">
                   <span class="category">{{ auction.product.category }}</span>
                   <app-auction-status-badge [status]="auction.status" />
@@ -48,6 +48,7 @@ import { AuctionStatus } from '../../core/models/auctions.model';
                 <p class="brand">{{ auction.product.brand || 'Sin marca' }}</p>
                 <p><span class="label">Precio base</span><strong class="price">{{ auction.base_price | cop }}</strong></p>
                 <p><span class="label">Líder actual</span><strong>{{ auction.current_leader_amount | cop }}</strong></p>
+                <div class="badge-slot">
                 @if (auction.status === 'CANCELADA' || ((auction.status === 'ACTIVA' || auction.status === 'CERRADA') && participation()[auction.id] !== undefined)) {
                   <span class="result-badge"
                     [class.success-badge]="auction.status === 'ACTIVA' ? participation()[auction.id] : auction.status === 'CERRADA' && participation()[auction.id]"
@@ -56,6 +57,7 @@ import { AuctionStatus } from '../../core/models/auctions.model';
                     {{ participationLabel(auction.status, participation()[auction.id]) }}
                   </span>
                 }
+                </div>
                 @if (auction.status !== 'CANCELADA') {
                   <a mat-flat-button class="primary-action view-action" [routerLink]="['/subastas', auction.id]" [state]="{ returnUrl: '/subastas' }">Ver</a>
                 }
@@ -75,8 +77,8 @@ import { AuctionStatus } from '../../core/models/auctions.model';
   styles: `
     .catalog-page { width: min(100% - 32px, 1100px); margin: 32px auto; }
     h1 { margin-bottom: 24px; font-size: 2rem; }
-    .auction-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
-    .auction-card { overflow: hidden; }
+    .auction-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows:1fr; gap: 20px; }
+    .auction-card { overflow: hidden; height:100%; display:flex; flex-direction:column; }.auction-card .card-content { display:flex; flex:1; flex-direction:column; }
     .auction-card img, .image-placeholder { height: 190px; object-fit: cover; background: #e5e7eb; }
     .image-placeholder { display: grid; place-items: center; color: #667085; }
     .card-topline { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 12px 0; }
@@ -84,11 +86,11 @@ import { AuctionStatus } from '../../core/models/auctions.model';
     h2 { margin: 8px 0; font-size: 1.15rem; }
     p { display: flex; justify-content: space-between; gap: 8px; }
     .price { color: var(--accent); }
-    .result-badge { display: inline-flex; width: fit-content; margin: 4px 0 8px; padding: 5px 10px; border-radius: 999px; font-size: .85rem; font-weight: 600; }
+    .badge-slot { min-height:40px; display:flex; align-items:flex-start; }.result-badge { display: inline-flex; width: fit-content; margin: 4px 0 8px; padding: 5px 10px; border-radius: 999px; font-size: .85rem; font-weight: 600; }
     .success-badge { color: #12643a; background: #dcfce7; }
     .loss-badge { color: #9a3412; background: #ffedd5; }
     .cancelled-badge { color: #475467; background: #eaecf0; }
-    .view-action { width: 100%; margin-top: 8px; }
+    .view-action { width: 100%; margin-top: auto; }
     .error-message { color: #b42318; }
     .pagination { display: flex; align-items: center; justify-content: center; gap: 18px; margin: 28px 0; }
     @media (max-width: 800px) { .auction-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

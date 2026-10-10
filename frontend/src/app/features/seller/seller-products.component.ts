@@ -49,7 +49,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog.c
                   <td><span class="status-badge" [class.active]="product.status === 'ACTIVO'" [class.inactive]="product.status === 'DESACTIVADO'">{{ product.status }}</span></td>
                   <td><div class="row-actions">
                     @if (product.status === 'DESACTIVADO') {
-                      <button mat-flat-button color="primary" type="button" (click)="reactivate(product)">Reactivar</button>
+                      <button mat-button class="table-action" type="button" (click)="reactivate(product)">Reactivar</button>
                     } @else {
                       <a mat-button class="table-action" [routerLink]="['/vendedor/productos', product.product_id, 'editar']">Editar</a>
                       <button mat-button class="table-action action-danger" type="button" (click)="confirmDelete(product)">Eliminar</button>
@@ -127,7 +127,7 @@ export class SellerProductsComponent implements OnInit {
   }
 
   protected confirmDelete(product: ProductResponse): void {
-    this.dialog.open(ConfirmDialogComponent, { data: { title: 'Eliminar producto', message: `“${product.name}”: si no tiene subastas, se eliminará. Si tiene una subasta ACTIVA, la operación será rechazada. Si tiene una PROGRAMADA, se cancelará y el producto se desactivará. Las subastas cerradas, finalizadas sin ganador o canceladas se conservarán sin cambios.`, confirmText: 'Continuar' } })
+    this.dialog.open(ConfirmDialogComponent, { data: { title: 'Eliminar producto', message: `“${product.name}”: si no tiene subastas, se eliminará. Si tiene una subasta ACTIVA, la operación será rechazada. Si tiene una PROGRAMADA, se cancelará y el producto se desactivará. Las subastas cerradas, finalizadas sin ganador o canceladas se conservarán sin cambios.`, confirmText: 'Continuar', destructive: true } })
       .afterClosed().subscribe((confirmed: boolean) => {
         if (!confirmed) return;
         this.products.remove(product.product_id).subscribe({

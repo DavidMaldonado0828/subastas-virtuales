@@ -20,7 +20,7 @@ import { MatInputModule } from '@angular/material/input';
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button type="button" (click)="dialog.close()">Volver</button>
-      <button mat-flat-button class="primary-action" type="button" [disabled]="!validReason()" (click)="submit()">Cancelar subasta</button>
+      <button mat-button class="table-action action-danger" type="button" [disabled]="!validReason()" (click)="submit()">Cancelar subasta</button>
     </mat-dialog-actions>
   `,
   styles: `.reason-field { width: 100%; min-width: min(440px, 75vw); }`,

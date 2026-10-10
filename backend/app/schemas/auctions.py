@@ -106,12 +106,18 @@ class MyAuctionItem(BaseModel):
     my_highest_bid: Decimal
     leader_amount: Decimal
     is_leader: bool
+    cancelled_by_admin: bool = False
 
 
 class MyAuctionPage(BaseModel):
     items: list[MyAuctionItem]
     limit: int
     offset: int
+
+
+class AuctionCancellationSummary(BaseModel):
+    reason: str
+    cancelled_at: datetime
 
 
 class SellerAuctionItem(BaseModel):
@@ -123,6 +129,7 @@ class SellerAuctionItem(BaseModel):
     end_date: datetime
     status: str
     bid_count: int
+    cancellation: AuctionCancellationSummary | None = None
 
 
 class SellerAuctionPage(BaseModel):

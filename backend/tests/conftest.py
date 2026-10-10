@@ -45,6 +45,7 @@ def auction_api(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[TestClient, s
             User(user_id=1, status_id=1, role=UserRole.VENDEDOR, name="Vendedor", alias="seller", email="seller@example.com", password_hash="x", phone_number="123"),
             User(user_id=2, status_id=1, role=UserRole.VENDEDOR, name="Otro", alias="other", email="other@example.com", password_hash="x", phone_number="123"),
             User(user_id=3, status_id=1, role=UserRole.POSTOR, name="Postor", alias="bidder", email="bidder@example.com", password_hash="x", phone_number="123"),
+            User(user_id=4, status_id=1, role=UserRole.ADMIN, name="Admin", alias="private-admin", email="admin@example.com", password_hash="x", phone_number="999"),
             Category(category_id=1, status_id=1, name="Arte", description="Arte"),
             Product(product_id=1, seller_id=1, category_id=1, status_id=1, name="Cuadro", description="Óleo"),
             Product(product_id=2, seller_id=2, category_id=1, status_id=1, name="Otro", description="Producto de otro"),

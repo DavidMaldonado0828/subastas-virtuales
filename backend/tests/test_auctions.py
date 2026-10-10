@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from app.core.config import settings
 from app.models.auction import Auction
+from app.models.auction_cancellation import AuctionCancellation
 from app.models.bid import Bid
 from app.models.status_history import StatusHistory
 from app.jobs.auction_statuses import update_auction_statuses
@@ -61,6 +62,7 @@ def test_seller_auction_list_is_owned_paged_and_includes_status_product_and_bid_
     first_page = first.json()
     assert first_page["total"] == 2 and len(first_page["items"]) == 1
     assert first_page["items"][0]["status"] == "PROGRAMADA"
+    assert first_page["items"][0]["cancellation"] is None
     assert first_page["items"][0]["product"]["name"] == "Cuadro"
     assert first_page["items"][0]["bid_count"] == 1
     second_page = client.get("/api/v1/me/seller/auctions?limit=1&offset=1").json()
@@ -72,6 +74,52 @@ def test_seller_auction_list_is_owned_paged_and_includes_status_product_and_bid_
     assert client.get("/api/v1/me/seller/auctions").status_code == 403
     client.headers.pop("Authorization")
     assert client.get("/api/v1/me/seller/auctions").status_code == 401
+
+
+def test_cancellation_details_are_private_and_owner_scoped(auction_api):
+    client, factory = auction_api
+    now = datetime.now(UTC)
+    with factory() as db:
+        own = Auction(product_id=1, status_id=7, base_price=Decimal("100"), minimum_increment=Decimal("5"),
+                      start_date=now - timedelta(days=2), end_date=now - timedelta(days=1))
+        other = Auction(product_id=2, status_id=7, base_price=Decimal("100"), minimum_increment=Decimal("5"),
+                        start_date=now - timedelta(days=2), end_date=now - timedelta(days=1))
+        db.add_all([own, other])
+        db.flush()
+        db.add_all([
+            AuctionCancellation(auction_id=own.auction_id, admin_user_id=4,
+                reason_detail={"reason": "Motivo privado del vendedor uno"}, cancelled_at=now),
+            AuctionCancellation(auction_id=other.auction_id, admin_user_id=4,
+                reason_detail={"reason": "Motivo privado del vendedor dos"}, cancelled_at=now),
+            Bid(auction_id=own.auction_id, participant_id=3, amount=Decimal("110")),
+            Bid(auction_id=other.auction_id, participant_id=3, amount=Decimal("120")),
+        ])
+        own_id, other_id = own.auction_id, other.auction_id
+        db.commit()
+
+    own_rows = client.get("/api/v1/me/seller/auctions").json()["items"]
+    own_cancelled = next(item for item in own_rows if item["auction_id"] == own_id)
+    assert own_cancelled["cancellation"]["reason"] == "Motivo privado del vendedor uno"
+    assert own_cancelled["cancellation"]["cancelled_at"]
+    assert set(own_cancelled["cancellation"]) == {"reason", "cancelled_at"}
+    assert "private-admin" not in str(own_cancelled) and "admin@example.com" not in str(own_cancelled)
+    assert all(item["auction_id"] != other_id for item in own_rows)
+
+    other_seller = jwt.encode({"sub": "2", "role": "VENDEDOR", "exp": 4102444800},
+                              settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    other_rows = client.get("/api/v1/me/seller/auctions", headers={"Authorization": f"Bearer {other_seller}"}).json()["items"]
+    other_cancelled = next(item for item in other_rows if item["auction_id"] == other_id)
+    assert other_cancelled["cancellation"]["reason"] == "Motivo privado del vendedor dos"
+    assert "Motivo privado del vendedor uno" not in str(other_rows)
+
+    bidder = jwt.encode({"sub": "3", "role": "POSTOR", "exp": 4102444800},
+                        settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    bidder_rows = client.get("/api/v1/me/auctions", headers={"Authorization": f"Bearer {bidder}"}).json()["items"]
+    cancelled = [item for item in bidder_rows if item["status"] == "CANCELADA"]
+    assert {item["auction_id"] for item in cancelled} == {own_id, other_id}
+    assert all(item["cancelled_by_admin"] is True for item in cancelled)
+    assert all("cancellation" not in item and "reason" not in item for item in cancelled)
+    assert "private-admin" not in str(cancelled) and "admin@example.com" not in str(cancelled)
 
 
 def test_create_rejects_invalid_product_amount_dates_and_duplicate_auction(auction_api):

@@ -90,7 +90,7 @@ function dateRangeValidator(control: AbstractControl): ValidationErrors | null {
               <p class="date-error" role="alert">La fecha y hora de cierre deben ser posteriores al inicio.</p>
             }
             <div class="actions"><button mat-flat-button class="primary-action" type="submit" [disabled]="saving() || form.invalid">{{ saving() ? 'Guardando…' : 'Guardar' }}</button>
-              <button mat-stroked-button type="button" (click)="cancel()">Cancelar</button></div>
+              <button mat-button type="button" (click)="cancel()">Cancelar</button></div>
           </form>
         </mat-card-content></mat-card>
       }

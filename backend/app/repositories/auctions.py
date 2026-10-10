@@ -7,6 +7,7 @@ from app.models.product import Product
 from app.models.status import Status
 from app.models.category import Category
 from app.models.user import User
+from app.models.auction_cancellation import AuctionCancellation
 
 
 def get_status_for_auction(session: Session, code: str) -> Status | None:
@@ -23,6 +24,10 @@ def get_product(session: Session, product_id: int) -> Product | None:
 
 def get_by_id(session: Session, auction_id: int) -> Auction | None:
     return session.get(Auction, auction_id)
+
+
+def get_cancellation(session: Session, auction_id: int) -> AuctionCancellation | None:
+    return session.get(AuctionCancellation, auction_id)
 
 
 def get_status_code(session: Session, status_id: int) -> str | None:

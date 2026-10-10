@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
@@ -14,7 +13,7 @@ import { CopPipe } from '../../shared/pipes/cop.pipe';
 
 @Component({
   selector: 'app-seller-auctions', standalone: true,
-  imports: [DatePipe, RouterLink, MatButtonModule, MatCardModule, MatFormFieldModule, MatSelectModule, AuctionStatusBadgeComponent, CopPipe],
+  imports: [RouterLink, MatButtonModule, MatCardModule, MatFormFieldModule, MatSelectModule, AuctionStatusBadgeComponent, CopPipe],
   template: `
     <main class="seller-page">
       <div class="heading"><div><h1>Mis subastas</h1><p>Consulta y administra tus subastas.</p></div>
@@ -44,8 +43,8 @@ import { CopPipe } from '../../shared/pipes/cop.pipe';
                     <div class="facts">
                       <p><span>Precio base</span><strong>{{ auction.base_price | cop }}</strong></p>
                       <p><span>Incremento mínimo</span><strong>{{ auction.minimum_increment | cop }}</strong></p>
-                      <p><span>Inicio</span><strong>{{ auction.start_date | date:'short' }}</strong></p>
-                      <p><span>Cierre</span><strong>{{ auction.end_date | date:'short' }}</strong></p>
+                      <p><span>Inicio</span><strong class="date-line">{{ formatDate(auction.start_date) }}</strong></p>
+                      <p><span>Cierre</span><strong class="date-line">{{ formatDate(auction.end_date) }}</strong></p>
                       <p><span>Pujas</span><strong>{{ auction.bid_count }}</strong></p>
                     </div>
                     <div class="row-actions">
@@ -64,7 +63,7 @@ import { CopPipe } from '../../shared/pipes/cop.pipe';
     .heading-actions { display: flex; gap: 10px; align-items: center; } h1 { margin: 0; }.heading p, .category { color: #667085; }
     .status-filter { width: min(100%, 360px); margin: 4px 0 16px; }.auction-list { display: grid; gap: 14px; }.auction-row h3 { margin: 0 0 6px; font-size: 1.2rem; }
     .row-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 20px; margin: 16px 0; }
-    .facts p { display: flex; flex-direction: column; gap: 4px; margin: 5px 0; }.facts span { color: #667085; font-size: .88rem; }.row-actions { display: flex; gap: 8px; flex-wrap: wrap; }.timer { margin: 14px 0 0; color: #1a73e8; font-weight: 600; }
+    .facts p { display: flex; flex-direction: column; gap: 4px; margin: 5px 0; }.facts span { color: #667085; font-size: .88rem; }.date-line { white-space:nowrap; }.row-actions { display: flex; gap: 8px; flex-wrap: wrap; }.timer { margin: 14px 0 0; color: #1a73e8; font-weight: 600; }
     .empty { text-align: center; padding: 30px; color: #667085; }
     @media (max-width: 640px) { .heading { align-items: flex-start; gap: 12px; flex-direction: column; }.heading-actions { flex-wrap: wrap; }.facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   `,
@@ -77,6 +76,9 @@ export class SellerAuctionsComponent implements OnInit {
   protected readonly refreshing = signal(false);
   protected readonly statusFilter = signal<'TODAS' | 'EN_CURSO' | 'CERRADAS' | 'CANCELADA'>('TODAS');
   protected readonly clockNow = signal(Date.now());
+  private readonly dateFormatter = new Intl.DateTimeFormat('es-CO', {
+    day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit',
+  });
   protected readonly visibleItems = computed(() => this.items().filter((item) => {
     const filter = this.statusFilter();
     if (filter === 'EN_CURSO') return item.status === 'ACTIVA' || item.status === 'PROGRAMADA';
@@ -113,6 +115,8 @@ export class SellerAuctionsComponent implements OnInit {
   protected canEdit(auction: SellerAuctionItem): boolean {
     return auction.bid_count === 0 && (auction.status === 'PROGRAMADA' || auction.status === 'ACTIVA');
   }
+
+  protected formatDate(value: string): string { return this.dateFormatter.format(new Date(value)); }
 
   protected countdown(auction: SellerAuctionItem): { label: string; value: string } | null {
     const target = auction.status === 'PROGRAMADA' ? Date.parse(auction.start_date)

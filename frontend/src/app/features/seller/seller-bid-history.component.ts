@@ -30,7 +30,10 @@ import { AuctionStatusBadgeComponent } from '../../shared/components/auction-sta
           @if (current.status === 'CERRADA') { <p class="result">{{ highestBid() ? 'Ganador: ' + highestBid()!.bidder_alias : 'Subasta cerrada sin pujas.' }} @if (highestBid()) { · {{ highestBid()!.amount | cop }} }</p> }
           @if (current.status === 'FINALIZADA_SIN_GANADOR') { <p class="result">Finalizada sin ganador: no hubo pujas.</p> }
           @if (current.status === 'CANCELADA') {
-            <p class="result">Subasta cancelada. La API actual no entrega el motivo ni el administrador responsable en esta vista.</p>
+            @if (current.cancellation; as cancellation) {
+              <div class="result cancellation"><p><strong>Motivo de cancelación:</strong> {{ cancellation.reason }}</p>
+                <p><strong>Fecha:</strong> {{ cancellation.cancelled_at | date:'medium' }}</p></div>
+            } @else { <p class="result">Subasta cancelada. No hay un motivo registrado.</p> }
           }
         </section>
       }
@@ -56,7 +59,7 @@ import { AuctionStatusBadgeComponent } from '../../shared/components/auction-sta
   styles: `
     .history-page { width: min(100% - 32px, 900px); margin: 30px auto; } h1 { margin: 20px 0; }
     .summary { border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin: 18px 0 26px; }.summary-title { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }.summary h2 { margin: 0; }.summary-title p { margin: 5px 0; color: #667085; }
-    .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }.summary-grid p { display: flex; flex-direction: column; gap: 5px; }.summary-grid span { color: #667085; font-size: .88rem; }.result { background: #f8fafc; padding: 10px 12px; border-radius: 8px; }.leader { color: #1a73e8; }
+    .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }.summary-grid p { display: flex; flex-direction: column; gap: 5px; }.summary-grid span { color: #667085; font-size: .88rem; }.result { background: #f8fafc; padding: 10px 12px; border-radius: 8px; }.cancellation p { margin:5px 0; }.leader { color: #1a73e8; }
     table { width: 100%; }.table-scroll { overflow-x: auto; border: 1px solid var(--border); }
     .pagination { display: flex; justify-content: center; align-items: center; gap: 16px; margin: 24px; }
     @media (max-width: 640px) { .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

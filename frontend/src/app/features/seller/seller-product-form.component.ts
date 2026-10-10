@@ -37,7 +37,7 @@ import { ApiErrorService } from '../../core/services/api-error.service';
             <mat-form-field appearance="outline"><mat-label>Marca (opcional)</mat-label><input matInput formControlName="brand" /></mat-form-field>
             <mat-form-field appearance="outline"><mat-label>URL de imagen (opcional)</mat-label><input matInput type="url" formControlName="image_url" /></mat-form-field>
             <div class="actions"><button mat-flat-button class="primary-action" type="submit" [disabled]="saving() || form.invalid">Guardar</button>
-              <button mat-stroked-button type="button" (click)="cancel()">Cancelar</button></div>
+              <button mat-button type="button" (click)="cancel()">Cancelar</button></div>
           </form>
         </mat-card-content></mat-card>
       }

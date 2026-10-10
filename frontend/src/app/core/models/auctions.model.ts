@@ -21,5 +21,6 @@ export interface AuctionResponse {
 export interface SellerAuctionItem {
   auction_id: number; product: PublicProduct; base_price: number; minimum_increment: number;
   start_date: string; end_date: string; status: AuctionStatus; bid_count: number;
+  cancellation: { reason: string; cancelled_at: string } | null;
 }
 export interface SellerAuctionPage { items: SellerAuctionItem[]; limit: number; offset: number; total: number; }

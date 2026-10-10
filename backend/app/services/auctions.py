@@ -204,7 +204,8 @@ def list_my_auctions(session: Session, participant: User, *, limit: int, offset:
             auction.start_date, auction.end_date, now, has_bids=leader_amount is not None)
         items.append(MyAuctionItem(auction_id=auction.auction_id, product_name=product.name,
             status=state, my_highest_bid=highest, leader_amount=leader_amount,
-            is_leader=leader_amount == highest and bid_repository.leader(session, auction.auction_id).participant_id == participant.user_id))
+            is_leader=leader_amount == highest and bid_repository.leader(session, auction.auction_id).participant_id == participant.user_id,
+            cancelled_by_admin=state == "CANCELADA"))
     return MyAuctionPage(items=items, limit=limit, offset=offset)
 
 #Muestra el historial de una subasta específica, con paginación y detalles de cada puja, incluyendo el alias del participante, el monto y la fecha de la puja.
@@ -217,6 +218,13 @@ def list_seller_auctions(session: Session, seller: User, *, limit: int, offset: 
         current_status = status_code if status_code == "CANCELADA" else calculate_status(
             auction.start_date, auction.end_date, datetime.now(UTC), has_bids=bid_count > 0
         )
+        cancellation = None
+        if current_status == "CANCELADA":
+            record = auction_repository.get_cancellation(session, auction.auction_id)
+            if record is not None:
+                details = record.reason_detail
+                reason = details.get("reason", "") if isinstance(details, dict) else str(details)
+                cancellation = {"reason": reason, "cancelled_at": record.cancelled_at}
         items.append(SellerAuctionItem(
             auction_id=auction.auction_id,
             product=_public_product(product, category),
@@ -226,6 +234,7 @@ def list_seller_auctions(session: Session, seller: User, *, limit: int, offset: 
             end_date=auction.end_date,
             status=current_status,
             bid_count=bid_count,
+            cancellation=cancellation,
         ))
     return SellerAuctionPage(items=items, limit=limit, offset=offset, total=total)
 

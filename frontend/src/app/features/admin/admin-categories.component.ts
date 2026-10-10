@@ -84,6 +84,7 @@ export class AdminCategoriesComponent implements OnInit {
         ? 'No podrá asignarse a productos nuevos o editados. Los productos existentes conservarán la categoría.'
         : 'La categoría volverá a estar disponible para asignarla a productos.',
       confirmText: action[0].toUpperCase() + action.slice(1),
+      destructive: status === 'DESACTIVADA',
     } }).afterClosed().subscribe((confirmed: boolean) => {
       if (!confirmed) return;
       this.busyId.set(category.id);
