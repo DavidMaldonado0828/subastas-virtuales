@@ -32,10 +32,14 @@ def _response(session: Session, product: Product) -> ProductResponse:
     status_code = status_repository.get_status_code(session, product.status_id)
     if status_code is None:
         raise HTTPException(status_code=503, detail="El estado del producto no está disponible.")
+    category = category_repository.get_by_id(session, product.category_id)
+    if category is None:
+        raise HTTPException(status_code=503, detail="La categoría del producto no está disponible.")
     return ProductResponse(
         product_id=product.product_id,
         seller_id=product.seller_id,
         category_id=product.category_id,
+        category_name=category.name,
         status_id=product.status_id,
         status=status_code,
         name=product.name,
@@ -74,14 +78,14 @@ def update(session: Session, seller: User, product_id: int, payload: ProductPatc
     changes = payload.model_dump(exclude_unset=True)
     if not changes:
         raise HTTPException(status_code=422, detail="Debe indicar al menos un campo.")
-    locked_fields = set(changes) - {"description", "image_url"}
-    if locked_fields and product_repository.ever_active_or_closed(session, product_id):
-        raise HTTPException(status_code=409, detail="Solo puede editar descripción e imagen del producto asociado a una subasta Activa o Cerrada.")
     for field in ("name", "description", "category_id"):
         if field in changes and changes[field] is None:
             raise HTTPException(status_code=422, detail=f"{field} no puede ser nulo.")
     if "category_id" in changes:
         _category(session, changes["category_id"])
+    locked_fields = set(changes) - {"description", "image_url"}
+    if locked_fields and product_repository.ever_active_or_closed(session, product_id):
+        raise HTTPException(status_code=409, detail="Solo puede editar descripción e imagen del producto asociado a una subasta Activa o Cerrada.")
     for field, value in changes.items():
         setattr(product, field, value)
     product.updated_at = datetime.now(UTC)

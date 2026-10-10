@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { AdminAuctionPage, AdminUserPage, AuctionCancellationResponse, AuctionCancelRequest, UserStatusUpdate, AdminUserStatusResponse } from '../models/admin.model';
+import { AdminAuctionBidPage, AdminAuctionDetail, AdminAuctionPage, AdminCategory, AdminCategoryCreate, AdminCategoryPatch, AdminCategoryStatusUpdate, AdminUserPage, AuctionCancellationResponse, AuctionCancelRequest, UserStatusUpdate, AdminUserStatusResponse } from '../models/admin.model';
 import { AuctionStatus } from '../models/auctions.model';
 
 @Injectable({ providedIn: 'root' })
@@ -29,5 +29,33 @@ export class AdminService {
 
   cancelAuction(id: number, payload: AuctionCancelRequest): Observable<AuctionCancellationResponse> {
     return this.http.post<AuctionCancellationResponse>(`${environment.apiUrl}/admin/auctions/${id}/cancel`, payload);
+  }
+
+  /** Consulta los datos completos de una subasta para administración. */
+  auctionDetail(id: number): Observable<AdminAuctionDetail> {
+    return this.http.get<AdminAuctionDetail>(`${environment.apiUrl}/admin/auctions/${id}`);
+  }
+
+  /** Consulta las pujas administrativas en páginas. */
+  auctionBids(id: number, limit: number, offset: number): Observable<AdminAuctionBidPage> {
+    const params = new HttpParams().set('limit', limit).set('offset', offset);
+    return this.http.get<AdminAuctionBidPage>(`${environment.apiUrl}/admin/auctions/${id}/bids`, { params });
+  }
+
+  /** Lista todas las categorías, incluidas las desactivadas. */
+  categories(): Observable<AdminCategory[]> {
+    return this.http.get<AdminCategory[]>(`${environment.apiUrl}/admin/categories`);
+  }
+
+  createCategory(payload: AdminCategoryCreate): Observable<AdminCategory> {
+    return this.http.post<AdminCategory>(`${environment.apiUrl}/admin/categories`, payload);
+  }
+
+  updateCategory(id: number, payload: AdminCategoryPatch): Observable<AdminCategory> {
+    return this.http.patch<AdminCategory>(`${environment.apiUrl}/admin/categories/${id}`, payload);
+  }
+
+  updateCategoryStatus(id: number, payload: AdminCategoryStatusUpdate): Observable<{ id: number; status: string }> {
+    return this.http.patch<{ id: number; status: string }>(`${environment.apiUrl}/admin/categories/${id}/status`, payload);
   }
 }

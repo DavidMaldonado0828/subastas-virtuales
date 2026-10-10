@@ -1,5 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -15,7 +16,7 @@ import { CancelAuctionDialogComponent } from './cancel-auction-dialog.component'
 
 @Component({
   selector: 'app-admin-auctions', standalone: true,
-  imports: [DatePipe, MatButtonModule, MatDialogModule, MatFormFieldModule, MatSelectModule, MatTableModule, AuctionStatusBadgeComponent, CopPipe],
+  imports: [DatePipe, RouterLink, MatButtonModule, MatDialogModule, MatFormFieldModule, MatSelectModule, MatTableModule, AuctionStatusBadgeComponent, CopPipe],
   template: `
     <main class="admin-page">
       <header class="heading"><div><h1>Subastas</h1><p>Consulta y administra las subastas del sistema.</p></div>
@@ -40,8 +41,8 @@ import { CancelAuctionDialogComponent } from './cancel-auction-dialog.component'
           <ng-container matColumnDef="leader"><th mat-header-cell *matHeaderCellDef>Líder</th><td mat-cell *matCellDef="let auction">@if (auction.leader_bid; as leader) { {{ leader.bidder_alias }} · {{ leader.amount | cop }} } @else { Sin pujas }</td></ng-container>
           <ng-container matColumnDef="dates"><th mat-header-cell *matHeaderCellDef>Fechas</th><td mat-cell *matCellDef="let auction">{{ auction.start_date | date:'short' }}<br>{{ auction.end_date | date:'short' }}</td></ng-container>
           <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Acciones</th><td mat-cell *matCellDef="let auction">
-            @if (canCancel(auction)) { <button mat-stroked-button type="button" [disabled]="busyId() === auction.auction_id" (click)="openCancel(auction)">Cancelar</button> }
-            @else { — }
+            <a mat-button class="table-action" [routerLink]="['/admin/subastas', auction.auction_id]">Ver detalle</a>
+            @if (canCancel(auction)) { <button mat-button class="table-action action-danger" type="button" [disabled]="busyId() === auction.auction_id" (click)="openCancel(auction)">Cancelar</button> }
           </td></ng-container>
           <tr mat-header-row *matHeaderRowDef="columns"></tr><tr mat-row *matRowDef="let row; columns: columns"></tr>
         </table></div>

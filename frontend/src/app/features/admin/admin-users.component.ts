@@ -29,8 +29,8 @@ import { AdminService } from '../../core/services/admin.service';
           <ng-container matColumnDef="role"><th mat-header-cell *matHeaderCellDef>Rol</th><td mat-cell *matCellDef="let user">{{ roleLabel(user.role) }}</td></ng-container>
           <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Estado</th><td mat-cell *matCellDef="let user"><span class="status" [class.blocked]="user.status === 'BLOQUEADO'">{{ user.status }}</span></td></ng-container>
           <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef>Acciones</th><td mat-cell *matCellDef="let user">
-            @if (user.role !== 'ADMIN' && user.status === 'ACTIVO') { <button mat-stroked-button type="button" [disabled]="busyId() === user.id" (click)="updateStatus(user, 'BLOQUEADO')">Bloquear</button> }
-            @else if (user.role !== 'ADMIN' && user.status === 'BLOQUEADO') { <button mat-stroked-button type="button" [disabled]="busyId() === user.id" (click)="updateStatus(user, 'ACTIVO')">Reactivar</button> }
+            @if (user.role !== 'ADMIN' && user.status === 'ACTIVO') { <button mat-button class="table-action action-danger" type="button" [disabled]="busyId() === user.id" (click)="updateStatus(user, 'BLOQUEADO')">Bloquear</button> }
+            @else if (user.role !== 'ADMIN' && user.status === 'BLOQUEADO') { <button mat-button class="table-action" type="button" [disabled]="busyId() === user.id" (click)="updateStatus(user, 'ACTIVO')">Reactivar</button> }
             @else { — }
           </td></ng-container>
           <tr mat-header-row *matHeaderRowDef="columns"></tr><tr mat-row *matRowDef="let row; columns: columns"></tr>

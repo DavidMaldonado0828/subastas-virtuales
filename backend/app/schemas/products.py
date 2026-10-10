@@ -40,6 +40,7 @@ class ProductResponse(BaseModel):
     product_id: int
     seller_id: int
     category_id: int
+    category_name: str
     status_id: int
     status: str
     name: str

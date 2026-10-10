@@ -49,8 +49,8 @@ import { CopPipe } from '../../shared/pipes/cop.pipe';
                       <p><span>Pujas</span><strong>{{ auction.bid_count }}</strong></p>
                     </div>
                     <div class="row-actions">
-                      <a mat-stroked-button [routerLink]="['/vendedor/subastas', auction.auction_id, 'pujas']">Historial de pujas</a>
-                      @if (canEdit(auction)) { <a mat-button [routerLink]="['/vendedor/subastas', auction.auction_id, 'editar']">Editar</a> }
+                      <a mat-button class="table-action" [routerLink]="['/vendedor/subastas', auction.auction_id, 'pujas']">Historial de pujas</a>
+                      @if (canEdit(auction)) { <a mat-button class="table-action" [routerLink]="['/vendedor/subastas', auction.auction_id, 'editar']">Editar</a> }
                     </div>
                   </mat-card-content></mat-card>
                 }

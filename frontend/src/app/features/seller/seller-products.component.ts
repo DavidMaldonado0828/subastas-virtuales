@@ -51,8 +51,8 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog.c
                     @if (product.status === 'DESACTIVADO') {
                       <button mat-flat-button color="primary" type="button" (click)="reactivate(product)">Reactivar</button>
                     } @else {
-                      <a mat-button [routerLink]="['/vendedor/productos', product.product_id, 'editar']">Editar</a>
-                      <button mat-button color="warn" type="button" (click)="confirmDelete(product)">Eliminar</button>
+                      <a mat-button class="table-action" [routerLink]="['/vendedor/productos', product.product_id, 'editar']">Editar</a>
+                      <button mat-button class="table-action action-danger" type="button" (click)="confirmDelete(product)">Eliminar</button>
                     }
                   </div></td>
                 </tr>

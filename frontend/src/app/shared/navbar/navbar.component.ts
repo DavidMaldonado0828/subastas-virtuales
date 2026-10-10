@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { RouterLink, RouterLinkActive } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { AuthService } from '../../core/auth/auth.service';
@@ -8,30 +8,31 @@ import { ConfirmDialogComponent } from '../components/confirm-dialog.component';
 
 @Component({
   selector: 'app-navbar', standalone: true,
-  imports: [RouterLink, MatButtonModule, MatDialogModule],
+  imports: [RouterLink, RouterLinkActive, MatButtonModule, MatDialogModule],
   template: `
     <header class="navbar">
-      <a class="brand" routerLink="/" aria-label="SubastaX, inicio">
+      <a class="brand" routerLink="/" routerLinkActive="nav-active" ariaCurrentWhenActive="page" aria-label="SubastaX, inicio">
         <img src="/logo-subastax.png" alt="SubastaX">
       </a>
       <nav aria-label="Navegación principal">
-        <a mat-button routerLink="/subastas">Subastas</a>
+        <a mat-button routerLink="/subastas" routerLinkActive="nav-active" ariaCurrentWhenActive="page">Subastas</a>
         @if (auth.user(); as user) {
-          @if (user.role === 'POSTOR') { <a mat-button routerLink="/postor/mis-subastas">Mis subastas</a> }
+          @if (user.role === 'POSTOR') { <a mat-button routerLink="/postor/mis-subastas" routerLinkActive="nav-active" ariaCurrentWhenActive="page">Mis subastas</a> }
           @if (user.role === 'VENDEDOR') {
-            <a mat-button routerLink="/vendedor/productos">Mis productos</a>
-            <a mat-button routerLink="/vendedor/subastas">Mis subastas</a>
+            <a mat-button routerLink="/vendedor/productos" routerLinkActive="nav-active" ariaCurrentWhenActive="page">Mis productos</a>
+            <a mat-button routerLink="/vendedor/subastas" routerLinkActive="nav-active" ariaCurrentWhenActive="page">Mis subastas</a>
           }
           @if (user.role === 'ADMIN') {
-            <a mat-button routerLink="/admin/subastas">Subastas admin</a>
-            <a mat-button routerLink="/admin/usuarios">Usuarios</a>
+            <a mat-button routerLink="/admin/subastas" routerLinkActive="nav-active" ariaCurrentWhenActive="page">Gestión de subastas</a>
+            <a mat-button routerLink="/admin/usuarios" routerLinkActive="nav-active" ariaCurrentWhenActive="page">Usuarios</a>
+            <a mat-button routerLink="/admin/categorias" routerLinkActive="nav-active" ariaCurrentWhenActive="page">Categorías</a>
           }
           <span class="user-alias">{{ user.alias }}</span>
           <span class="role-badge">{{ roleNames[user.role] }}</span>
           <button mat-button type="button" (click)="confirmLogout()">Cerrar sesión</button>
         } @else {
-          <a mat-button routerLink="/login">Iniciar sesión</a>
-          <a mat-flat-button class="primary-action nav-action" routerLink="/registro">Registrarse</a>
+          <a mat-button routerLink="/login" routerLinkActive="nav-active" ariaCurrentWhenActive="page">Iniciar sesión</a>
+          <a mat-flat-button class="primary-action nav-action" routerLink="/registro" routerLinkActive="nav-active" ariaCurrentWhenActive="page">Registrarse</a>
         }
       </nav>
     </header>
