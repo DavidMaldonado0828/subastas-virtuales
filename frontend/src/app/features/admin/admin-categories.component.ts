@@ -34,7 +34,7 @@ import { CategoryFormDialogComponent } from './category-form-dialog.component';
     </main>
   `,
   styles: `
-    .admin-page { width:min(100% - 32px,1100px); margin:30px auto; }.heading { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:20px; }.heading h1 { margin:0; }.heading p { color:#667085; }.actions,.row-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }.table-scroll { overflow-x:auto; border:1px solid var(--border); }table { width:100%; min-width:760px; }.category-badge { display:inline-block; padding:4px 10px; border-radius:999px; background:#e7f5ec; color:#176b38; font-size:.85rem; }.category-badge.inactive { background:#f2f4f7; color:#475467; }.empty { padding:26px; text-align:center; color:#667085; }
+    .admin-page { width:95%; max-width:1400px; margin:30px auto; }.heading { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:20px; }.heading h1 { margin:0; }.heading p { color:#667085; }.actions,.row-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }.table-scroll { overflow-x:auto; border:1px solid var(--border); }table { width:100%; min-width:760px; }.category-badge { display:inline-block; padding:4px 10px; border-radius:999px; background:#e7f5ec; color:#176b38; font-size:.85rem; }.category-badge.inactive { background:#f2f4f7; color:#475467; }.empty { padding:26px; text-align:center; color:#667085; }
     @media(max-width:620px) { .heading { align-items:flex-start; flex-direction:column; }.actions { width:100%; } }
   `,
 })

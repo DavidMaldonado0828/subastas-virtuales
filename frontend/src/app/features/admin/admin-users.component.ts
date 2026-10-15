@@ -40,7 +40,7 @@ import { AdminService } from '../../core/services/admin.service';
     </main>
   `,
   styles: `
-    .admin-page { width: min(100% - 32px, 1000px); margin: 30px auto; }.heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }.heading h1 { margin: 0; }.heading p { color: #667085; }.search-field { width: min(100%, 440px); }.table-scroll { overflow-x: auto; border: 1px solid var(--border); }table { width: 100%; min-width: 600px; }.status { display: inline-block; padding: 4px 9px; border-radius: 999px; background: #e7f5ec; color: #176b38; font-size: .85rem; }.status.blocked { background: #fff0ec; color: #b54708; }.pagination { display: flex; justify-content: center; align-items: center; gap: 16px; margin: 24px; }.empty { padding: 24px; text-align: center; color: #667085; }
+    .admin-page { width:95%; max-width:1400px; margin:30px auto; }.heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }.heading h1 { margin: 0; }.heading p { color: #667085; }.search-field { width: min(100%, 440px); }.table-scroll { overflow-x: auto; border: 1px solid var(--border); }table { width: 100%; min-width: 600px; }.status { display: inline-block; padding: 4px 9px; border-radius: 999px; background: #e7f5ec; color: #176b38; font-size: .85rem; }.status.blocked { background: #fff0ec; color: #b54708; }.pagination { display: flex; justify-content: center; align-items: center; gap: 16px; margin: 24px; }.empty { padding: 24px; text-align: center; color: #667085; }
     @media (max-width: 620px) { .heading { align-items: flex-start; flex-direction: column; gap: 12px; } }
   `,
 })

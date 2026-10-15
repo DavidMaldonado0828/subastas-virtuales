@@ -29,6 +29,18 @@ export class ProductsService {
     return this.http.patch<ProductResponse>(`${environment.apiUrl}/products/${id}`, payload);
   }
 
+  /** Envía el archivo al almacenamiento del backend sin fijar el content-type. */
+  uploadImage(id: number, file: File): Observable<ProductResponse> {
+    const data = new FormData();
+    data.append('file', file);
+    return this.http.post<ProductResponse>(`${environment.apiUrl}/products/${id}/image`, data);
+  }
+
+  /** Quita la imagen actual del producto. */
+  deleteImage(id: number): Observable<ProductResponse> {
+    return this.http.delete<ProductResponse>(`${environment.apiUrl}/products/${id}/image`);
+  }
+
   remove(id: number): Observable<ProductDeleteResponse> {
     return this.http.delete<ProductDeleteResponse>(`${environment.apiUrl}/products/${id}`);
   }

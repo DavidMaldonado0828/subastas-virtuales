@@ -35,7 +35,7 @@ import { AuctionStatus } from '../../core/models/auctions.model';
           @for (auction of items(); track auction.id) {
             <mat-card class="auction-card">
               @if (auction.product.image_url) {
-                <img mat-card-image [src]="auction.product.image_url" [alt]="auction.product.name" />
+                <img [src]="auction.product.image_url" [alt]="auction.product.name" />
               } @else {
                 <div class="image-placeholder" aria-hidden="true">Sin imagen</div>
               }
@@ -79,8 +79,8 @@ import { AuctionStatus } from '../../core/models/auctions.model';
     h1 { margin-bottom: 24px; font-size: 2rem; }
     .auction-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows:1fr; gap: 20px; }
     .auction-card { overflow: hidden; height:100%; display:flex; flex-direction:column; }.auction-card .card-content { display:flex; flex:1; flex-direction:column; }
-    .auction-card img, .image-placeholder { height: 190px; object-fit: cover; background: #e5e7eb; }
-    .image-placeholder { display: grid; place-items: center; color: #667085; }
+    .auction-card img, .image-placeholder { display:block; box-sizing:border-box; width:100%; aspect-ratio:4 / 3; height:auto; object-fit:cover; object-position:center; background:#e5e7eb; }
+    .image-placeholder { display:grid; place-items:center; color:#667085; }
     .card-topline { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 12px 0; }
     .category, .brand, .label { color: #667085; font-size: .9rem; }
     h2 { margin: 8px 0; font-size: 1.15rem; }

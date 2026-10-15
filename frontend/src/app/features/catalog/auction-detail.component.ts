@@ -37,9 +37,11 @@ import { CopPipe } from '../../shared/pipes/cop.pipe';
         <p class="error-message" role="alert">{{ error() }}</p>
       } @else if (auction(); as item) {
         <section class="auction-summary">
-          @if (item.product.image_url) {
-            <img class="product-image" [src]="item.product.image_url" [alt]="item.product.name" />
-          }
+          <div class="image-container">
+            @if (item.product.image_url) {
+              <img class="product-image" [src]="item.product.image_url" [alt]="item.product.name" />
+            } @else { <div class="product-image image-placeholder">Sin imagen</div> }
+          </div>
           <div class="summary-content">
             <p class="category">{{ item.product.category }}</p>
             <h2>{{ item.product.name }}</h2>
@@ -124,8 +126,10 @@ import { CopPipe } from '../../shared/pipes/cop.pipe';
     .page-heading, .status-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
     .page-heading { margin: 14px 0 24px; }
     .page-heading h1 { margin: 0; font-size: 2rem; }
-    .auction-summary { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); overflow: hidden; border: 1px solid var(--border); border-radius: 6px; }
-    .product-image { width: 100%; height: 100%; min-height: 320px; object-fit: cover; background: #e5e7eb; }
+    .auction-summary { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); align-items: stretch; overflow: hidden; border: 1px solid var(--border); border-radius: 6px; }
+    .image-container { align-self: stretch; display: flex; min-height: 280px; }
+    .product-image { display:block; width: 100%; height: 100%; flex:1; min-height:0; object-fit: cover; background: #e5e7eb; }
+    .image-placeholder { display:grid; place-items:center; color:#667085; }
     .summary-content { padding: 24px; }
     .summary-content h2 { margin: 8px 0; font-size: 1.7rem; }
     .category, dt { color: #667085; }
@@ -142,9 +146,10 @@ import { CopPipe } from '../../shared/pipes/cop.pipe';
     .bids-section h2 { font-size: 1.25rem; }
     .table-scroll { overflow-x: auto; }
     .bids-table { width: 100%; border: 1px solid var(--border); }
-    @media (max-width: 680px) {
+    @media (max-width: 699px) {
       .auction-summary { grid-template-columns: 1fr; }
-      .product-image { min-height: 220px; max-height: 280px; }
+      .image-container { width:100%; min-height:0; aspect-ratio:4 / 3; }
+      .product-image { width:100%; height:100%; }
       .summary-content { padding: 18px; }
       .page-heading h1 { font-size: 1.6rem; }
     }

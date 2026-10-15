@@ -24,5 +24,6 @@ La URL base de la API se configura en `src/environments/environment.ts`.
 - Postor: `GET /me/auctions`, historial público de pujas y creación de pujas.
 - Vendedor: productos propios, `GET /me/seller/auctions`, creación/edición de subastas e historial de pujas.
 - Administrador: `/admin/subastas` consume `GET /admin/auctions` y `POST /admin/auctions/{id}/cancel`; `/admin/usuarios` consume `GET /admin/users` y `PATCH /admin/users/{id}/status`.
+- Productos del vendedor: el formulario acepta archivos JPEG, PNG o WEBP (máximo 2 MB), muestra vista previa y permite quitar la imagen. En productos nuevos, crea primero el producto y luego sube el archivo. Las tarjetas, el detalle de subasta y la tabla de productos muestran imagen o el marcador “Sin imagen”.
 
 Los endpoints de administración requieren rol `ADMIN`. Los errores de la API se presentan en snackbar mediante el interceptor global.

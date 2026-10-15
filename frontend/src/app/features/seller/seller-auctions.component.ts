@@ -35,7 +35,10 @@ import { CopPipe } from '../../shared/pipes/cop.pipe';
         @else {
               <div class="auction-list">
                 @for (auction of visibleItems(); track auction.auction_id) {
-                  <mat-card class="auction-row"><mat-card-content>
+                  <mat-card class="auction-row">
+                    @if (auction.product.image_url) { <img class="auction-image" [src]="auction.product.image_url" [alt]="auction.product.name" /> }
+                    @else { <div class="auction-image image-placeholder">Sin imagen</div> }
+                    <mat-card-content>
                     <div class="row-heading"><div><h3>{{ auction.product.name }}</h3><span class="category">{{ auction.product.category }}</span></div>
                       <app-auction-status-badge [status]="auction.status" />
                     </div>
@@ -61,9 +64,10 @@ import { CopPipe } from '../../shared/pipes/cop.pipe';
   styles: `
     .seller-page { width: min(100% - 32px, 1000px); margin: 32px auto; }.heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
     .heading-actions { display: flex; gap: 10px; align-items: center; } h1 { margin: 0; }.heading p, .category { color: #667085; }
-    .status-filter { width: min(100%, 360px); margin: 4px 0 16px; }.auction-list { display: grid; gap: 14px; }.auction-row h3 { margin: 0 0 6px; font-size: 1.2rem; }
+    .status-filter { width: min(100%, 360px); margin: 4px 0 16px; }.auction-list { display: grid; gap: 14px; }.auction-row { display:flex; flex-direction:column; }.auction-row mat-card-content { display:flex; flex:1; flex-direction:column; }.auction-row h3 { margin: 0 0 6px; font-size: 1.2rem; }
+    .auction-image { display:block; box-sizing:border-box; width:100%; aspect-ratio:4 / 3; height:auto; object-fit:cover; object-position:center; background:#e5e7eb; }.image-placeholder { display:grid; place-items:center; color:#667085; }
     .row-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 20px; margin: 16px 0; }
-    .facts p { display: flex; flex-direction: column; gap: 4px; margin: 5px 0; }.facts span { color: #667085; font-size: .88rem; }.date-line { white-space:nowrap; }.row-actions { display: flex; gap: 8px; flex-wrap: wrap; }.timer { margin: 14px 0 0; color: #1a73e8; font-weight: 600; }
+    .facts p { display: flex; flex-direction: column; gap: 4px; margin: 5px 0; }.facts span { color: #667085; font-size: .88rem; }.date-line { white-space:nowrap; }.row-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top:auto; }.timer { margin: 14px 0 0; color: #1a73e8; font-weight: 600; }
     .empty { text-align: center; padding: 30px; color: #667085; }
     @media (max-width: 640px) { .heading { align-items: flex-start; gap: 12px; flex-direction: column; }.heading-actions { flex-wrap: wrap; }.facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   `,

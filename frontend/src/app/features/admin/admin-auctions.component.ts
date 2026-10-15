@@ -49,7 +49,7 @@ import { CancelAuctionDialogComponent } from './cancel-auction-dialog.component'
     </main>
   `,
   styles: `
-    .admin-page { width: min(100% - 32px, 1200px); margin: 30px auto; }.heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }.heading h1 { margin: 0; }.heading p, small { color: #667085; }.status-filter { width: min(100%, 340px); }.table-scroll { overflow-x: auto; border: 1px solid var(--border); }table { width: 100%; min-width: 1180px; }td small { display: block; }.mat-column-product { min-width:260px; }.date-line { white-space:nowrap; }.date-line.emphasis { font-weight:700; }.mat-column-actions { width:240px; min-width:240px; }.mat-column-actions th,.mat-column-actions td { white-space:nowrap; }.pagination { display: flex; justify-content: center; align-items: center; gap: 16px; margin: 24px; }.empty { padding: 24px; text-align: center; color: #667085; }
+    .admin-page { width:95%; max-width:1400px; margin:30px auto; }.heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }.heading h1 { margin: 0; }.heading p, small { color: #667085; }.status-filter { width: min(100%, 340px); }.table-scroll { overflow-x: auto; border: 1px solid var(--border); }table { width: 100%; min-width: 1180px; }td small { display: block; }.mat-column-product { min-width:260px; }.date-line { white-space:nowrap; }.date-line.emphasis { font-weight:700; }.mat-column-actions { width:240px; min-width:240px; }.mat-column-actions th,.mat-column-actions td { white-space:nowrap; }.pagination { display: flex; justify-content: center; align-items: center; gap: 16px; margin: 24px; }.empty { padding: 24px; text-align: center; color: #667085; }
     @media (max-width: 620px) { .heading { align-items: flex-start; flex-direction: column; gap: 12px; } }
   `,
 })
@@ -59,7 +59,7 @@ export class AdminAuctionsComponent implements OnInit {
   protected readonly pageSize = 20;
   protected readonly columns = ['product', 'seller', 'status', 'bid_count', 'start', 'end', 'actions'];
   private readonly dateFormatter = new Intl.DateTimeFormat('es-CO', {
-    day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit',
+    day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hourCycle: 'h12',
   });
   protected readonly items = signal<AdminAuctionItem[]>([]);
   protected readonly status = signal<AuctionStatus | null>(null);

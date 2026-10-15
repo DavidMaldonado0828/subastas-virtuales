@@ -74,7 +74,7 @@ import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog.c
     th, td { padding: 12px 16px; text-align: left; vertical-align: middle; }
     th { color: #667085; background: #f9fafb; font-size: .8rem; font-weight: 500; text-transform: uppercase; }
     tbody tr { border-top: 1px solid #eaecf0; }
-    td img, .image-placeholder { width: 64px; height: 58px; object-fit: cover; border-radius: 4px; background: #e5e7eb; }
+    td img, .image-placeholder { display:block; box-sizing:border-box; width:100%; max-width:96px; aspect-ratio:4 / 3; height:auto; object-fit:cover; object-position:center; border-radius:4px; background:#e5e7eb; }
     .image-placeholder { display: grid; place-items: center; color: #667085; font-size: .7rem; }
     small { display: block; margin-top: 5px; color: #667085; }.status-badge { width: fit-content; padding: 5px 10px; border-radius: 999px; font-size: .82rem; }
     .active { color: #12643a; background: #dcfce7; }.inactive { color: #475467; background: #eaecf0; }
