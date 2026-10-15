@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.models.auction import Auction
 from app.models.auction_cancellation import AuctionCancellation
 from app.models.bid import Bid
+from app.models.product import Product
 from app.models.status_history import StatusHistory
 from app.jobs.auction_statuses import update_auction_statuses
 
@@ -169,6 +170,7 @@ def test_public_catalog_without_token_and_excludes_cancelled(auction_api):
     client, factory = auction_api
     created = client.post("/api/v1/auctions", json=create_payload()).json()
     with factory() as db:
+        db.get(Product, 1).image_url = "/media/products/demo.png"
         db.add(Auction(product_id=1, status_id=7, base_price=Decimal("40.00"), minimum_increment=Decimal("2.00"), start_date=datetime.now(UTC), end_date=datetime.now(UTC) + timedelta(days=1)))
         db.commit()
     client.headers.pop("Authorization")
@@ -178,8 +180,12 @@ def test_public_catalog_without_token_and_excludes_cancelled(auction_api):
     assert data["limit"] == 20 and data["offset"] == 0
     assert [item["id"] for item in data["items"]] == [created["auction_id"]]
     assert data["items"][0]["product"]["category"] == "Arte"
+    assert data["items"][0]["product"]["image_url"] == "http://testserver/media/products/demo.png"
     assert data["items"][0]["seller_alias"] == "seller"
     assert client.get("/api/v1/auctions?limit=101").status_code == 422
+    auction_id = created["auction_id"]
+    assert client.get(f"/api/v1/auctions/{auction_id}").json()["product"]["image_url"] == "http://testserver/media/products/demo.png"
+    assert client.get(f"/api/v1/auctions/{auction_id}/bids").json()["product_image_url"] == "http://testserver/media/products/demo.png"
 
 
 def test_public_catalog_defaults_filters_orders_and_paginates(auction_api):

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 from typing import Literal
 
@@ -21,6 +21,6 @@ def my_auctions(limit: int = Query(default=20, ge=1, le=100), offset: int = Quer
 
 
 @router.get("/seller/auctions", response_model=SellerAuctionPage)
-def seller_auctions(limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0),
+def seller_auctions(request: Request, limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0),
                     session: Session = Depends(get_db), seller: User = Depends(require_role(UserRole.VENDEDOR))) -> SellerAuctionPage:
-    return auction_service.list_seller_auctions(session, seller, limit=limit, offset=offset)
+    return auction_service.list_seller_auctions(session, seller, limit=limit, offset=offset, base_url=str(request.base_url))

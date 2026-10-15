@@ -56,6 +56,7 @@ class BidHistoryPage(BaseModel):
     items: list[BidHistoryItem]
     limit: int
     offset: int
+    product_image_url: str | None = None
 
 
 class AuctionCreate(BaseModel):

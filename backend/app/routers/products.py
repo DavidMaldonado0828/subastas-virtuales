@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, File, Query, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_role
@@ -17,23 +17,33 @@ def categories(session: Session = Depends(get_db)):
 
 
 @router.post("/products", response_model=ProductResponse, status_code=status.HTTP_201_CREATED, tags=["products"])
-def create_product(payload: ProductCreate, session: Session = Depends(get_db), seller: User = Depends(require_role(UserRole.VENDEDOR))):
-    return product_service.create(session, seller, payload)
+def create_product(payload: ProductCreate, request: Request, session: Session = Depends(get_db), seller: User = Depends(require_role(UserRole.VENDEDOR))):
+    return product_service.create(session, seller, payload, str(request.base_url))
 
 
 @router.get("/products", response_model=list[ProductResponse], tags=["products"])
-def list_products(brand: str | None = Query(default=None), category_id: int | None = Query(default=None, gt=0), name: str | None = Query(default=None), session: Session = Depends(get_db), seller: User = Depends(require_role(UserRole.VENDEDOR))):
-    return product_service.list_mine(session, seller, brand, category_id, name)
+def list_products(request: Request, brand: str | None = Query(default=None), category_id: int | None = Query(default=None, gt=0), name: str | None = Query(default=None), session: Session = Depends(get_db), seller: User = Depends(require_role(UserRole.VENDEDOR))):
+    return product_service.list_mine(session, seller, brand, category_id, name, str(request.base_url))
 
 
 @router.get("/products/{product_id}", response_model=ProductResponse, tags=["products"])
-def get_product(product_id: int, session: Session = Depends(get_db), seller: User = Depends(require_role(UserRole.VENDEDOR))):
-    return product_service.get_mine(session, seller, product_id)
+def get_product(product_id: int, request: Request, session: Session = Depends(get_db), seller: User = Depends(require_role(UserRole.VENDEDOR))):
+    return product_service.get_mine(session, seller, product_id, str(request.base_url))
 
 
 @router.patch("/products/{product_id}", response_model=ProductResponse, tags=["products"])
-def update_product(product_id: int, payload: ProductPatch, session: Session = Depends(get_db), seller: User = Depends(require_role(UserRole.VENDEDOR))):
-    return product_service.update(session, seller, product_id, payload)
+def update_product(product_id: int, payload: ProductPatch, request: Request, session: Session = Depends(get_db), seller: User = Depends(require_role(UserRole.VENDEDOR))):
+    return product_service.update(session, seller, product_id, payload, str(request.base_url))
+
+
+@router.post("/products/{product_id}/image", response_model=ProductResponse, tags=["products"])
+async def upload_product_image(product_id: int, request: Request, file: UploadFile = File(...), session: Session = Depends(get_db), seller: User = Depends(require_role(UserRole.VENDEDOR))):
+    return await product_service.upload_image(session, seller, product_id, file, str(request.base_url))
+
+
+@router.delete("/products/{product_id}/image", response_model=ProductResponse, tags=["products"])
+def delete_product_image(product_id: int, request: Request, session: Session = Depends(get_db), seller: User = Depends(require_role(UserRole.VENDEDOR))):
+    return product_service.delete_image(session, seller, product_id, str(request.base_url))
 
 
 @router.delete("/products/{product_id}", response_model=ProductDeleteResponse, tags=["products"])
@@ -42,5 +52,5 @@ def delete_product(product_id: int, session: Session = Depends(get_db), seller: 
 
 
 @router.post("/products/{product_id}/reactivate", response_model=ProductResponse, tags=["products"])
-def reactivate_product(product_id: int, session: Session = Depends(get_db), seller: User = Depends(require_role(UserRole.VENDEDOR))):
-    return product_service.reactivate(session, seller, product_id)
+def reactivate_product(product_id: int, request: Request, session: Session = Depends(get_db), seller: User = Depends(require_role(UserRole.VENDEDOR))):
+    return product_service.reactivate(session, seller, product_id, str(request.base_url))

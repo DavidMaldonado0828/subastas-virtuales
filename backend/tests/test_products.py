@@ -21,6 +21,7 @@ from app.models.status import Status, StatusApplicability
 from app.models.status_history import StatusHistory
 from app.models.user import User
 from app.routers.products import router
+from app.services import storage as storage_service
 
 
 @pytest.fixture
@@ -213,3 +214,41 @@ def test_reactivation_rejects_suspended_active_and_inactive_category_products(ap
     assert category_response.status_code == 409 and "categoría" in category_response.json()["detail"]
     client.headers["Authorization"] = f"Bearer {client.other_token}"
     assert client.post(f"/api/v1/products/{suspended['product_id']}/reactivate").status_code == 404
+
+
+def test_product_image_upload_validation_replace_delete_and_permissions(api, tmp_path, monkeypatch):
+    from app.services.storage import DiskStorage
+
+    client, _factory = api
+    monkeypatch.setattr(storage_service, "storage", DiskStorage(tmp_path))
+    product = client.post("/api/v1/products", json=payload()).json()
+    image_path = f"/api/v1/products/{product['product_id']}/image"
+
+    png = b"\x89PNG\r\n\x1a\n" + b"demo image"
+    first = client.post(image_path, files={"file": ("first.png", png, "image/png")})
+    assert first.status_code == 200, first.text
+    first_url = first.json()["image_url"]
+    assert first_url.endswith(".png") and (tmp_path / first_url.rsplit("/", 1)[-1]).exists()
+
+    invalid = client.post(image_path, files={"file": ("fake.png", b"plain text", "image/png")})
+    assert invalid.status_code == 422 and "JPEG, PNG o WEBP" in invalid.json()["detail"]
+    oversized = client.post(image_path, files={"file": ("large.png", png + b"x" * (2 * 1024 * 1024), "image/png")})
+    assert oversized.status_code == 422 and "2 MB" in oversized.json()["detail"]
+
+    webp = b"RIFF" + b"\x00\x00\x00\x00" + b"WEBP" + b"demo"
+    second = client.post(image_path, files={"file": ("second.bin", webp, "application/octet-stream")})
+    assert second.status_code == 200 and second.json()["image_url"].endswith(".webp")
+    assert not (tmp_path / first_url.rsplit("/", 1)[-1]).exists()
+    second_file = tmp_path / second.json()["image_url"].rsplit("/", 1)[-1]
+    assert second_file.exists()
+
+    assert client.delete(image_path).status_code == 200
+    assert not second_file.exists()
+    assert client.get(f"/api/v1/products/{product['product_id']}").json()["image_url"] is None
+
+    client.headers["Authorization"] = f"Bearer {client.other_token}"
+    assert client.post(image_path, files={"file": ("a.png", png, "image/png")}).status_code == 404
+    client.headers["Authorization"] = "Bearer " + jwt.encode({"sub": "3", "role": "POSTOR", "exp": 4102444800}, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    assert client.post(image_path, files={"file": ("a.png", png, "image/png")}).status_code == 403
+    client.headers.pop("Authorization")
+    assert client.post(image_path, files={"file": ("a.png", png, "image/png")}).status_code == 401

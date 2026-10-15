@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.enums import EntityType
@@ -12,6 +12,7 @@ from app.repositories import products as product_repository
 from app.repositories import statuses as status_repository
 from app.schemas.products import ProductCreate, ProductPatch, ProductResponse
 from app.services.status_history import record_status_change
+from app.services import storage as storage_service
 
 
 def _category(session: Session, category_id: int) -> Category:
@@ -28,7 +29,7 @@ def _owned(session: Session, product_id: int, seller_id: int) -> Product:
     return product
 
 
-def _response(session: Session, product: Product) -> ProductResponse:
+def _response(session: Session, product: Product, base_url: str | None = None) -> ProductResponse:
     status_code = status_repository.get_status_code(session, product.status_id)
     if status_code is None:
         raise HTTPException(status_code=503, detail="El estado del producto no está disponible.")
@@ -45,13 +46,13 @@ def _response(session: Session, product: Product) -> ProductResponse:
         name=product.name,
         brand=product.brand,
         description=product.description,
-        image_url=product.image_url,
+        image_url=storage_service.public_url(product.image_url, base_url),
         created_at=product.created_at,
         updated_at=product.updated_at,
     )
 
 
-def create(session: Session, seller: User, payload: ProductCreate) -> ProductResponse:
+def create(session: Session, seller: User, payload: ProductCreate, base_url: str | None = None) -> ProductResponse:
     _category(session, payload.category_id)
     active_status = status_repository.get_status_for_entity(session, "ACTIVO", EntityType.PRODUCT.value)
     if active_status is None:
@@ -61,19 +62,19 @@ def create(session: Session, seller: User, payload: ProductCreate) -> ProductRes
     product_repository.add(session, product)
     session.commit()
     session.refresh(product)
-    return _response(session, product)
+    return _response(session, product, base_url)
 
 
-def list_mine(session: Session, seller: User, brand: str | None, category_id: int | None, name: str | None) -> list[ProductResponse]:
+def list_mine(session: Session, seller: User, brand: str | None, category_id: int | None, name: str | None, base_url: str | None = None) -> list[ProductResponse]:
     products = product_repository.list_owned(session, seller.user_id, brand, category_id, name)
-    return [_response(session, product) for product in products]
+    return [_response(session, product, base_url) for product in products]
 
 
-def get_mine(session: Session, seller: User, product_id: int) -> ProductResponse:
-    return _response(session, _owned(session, product_id, seller.user_id))
+def get_mine(session: Session, seller: User, product_id: int, base_url: str | None = None) -> ProductResponse:
+    return _response(session, _owned(session, product_id, seller.user_id), base_url)
 
 
-def update(session: Session, seller: User, product_id: int, payload: ProductPatch) -> ProductResponse:
+def update(session: Session, seller: User, product_id: int, payload: ProductPatch, base_url: str | None = None) -> ProductResponse:
     product = _owned(session, product_id, seller.user_id)
     changes = payload.model_dump(exclude_unset=True)
     if not changes:
@@ -91,7 +92,40 @@ def update(session: Session, seller: User, product_id: int, payload: ProductPatc
     product.updated_at = datetime.now(UTC)
     session.commit()
     session.refresh(product)
-    return _response(session, product)
+    return _response(session, product, base_url)
+
+
+async def upload_image(session: Session, seller: User, product_id: int, file: UploadFile, base_url: str | None = None) -> ProductResponse:
+    product = _owned(session, product_id, seller.user_id)
+    try:
+        new_url = await storage_service.storage.save(file)
+    except storage_service.ImageTooLarge as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except storage_service.InvalidImage as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    old_url = product.image_url
+    product.image_url = new_url
+    product.updated_at = datetime.now(UTC)
+    try:
+        session.commit()
+        session.refresh(product)
+    except Exception:
+        session.rollback()
+        storage_service.storage.delete(new_url)
+        raise
+    storage_service.storage.delete(old_url)
+    return _response(session, product, base_url)
+
+
+def delete_image(session: Session, seller: User, product_id: int, base_url: str | None = None) -> ProductResponse:
+    product = _owned(session, product_id, seller.user_id)
+    old_url = product.image_url
+    product.image_url = None
+    product.updated_at = datetime.now(UTC)
+    session.commit()
+    session.refresh(product)
+    storage_service.storage.delete(old_url)
+    return _response(session, product, base_url)
 
 
 def delete(session: Session, seller: User, product_id: int) -> dict[str, int | str | None]:
@@ -128,7 +162,7 @@ def delete(session: Session, seller: User, product_id: int) -> dict[str, int | s
     return {"product_id": product_id, "result": "DEACTIVATED", "status": "DESACTIVADO"}
 
 
-def reactivate(session: Session, seller: User, product_id: int) -> ProductResponse:
+def reactivate(session: Session, seller: User, product_id: int, base_url: str | None = None) -> ProductResponse:
     product = _owned(session, product_id, seller.user_id)
     current_status = status_repository.get_status_code(session, product.status_id)
     if current_status != "DESACTIVADO":
@@ -146,7 +180,7 @@ def reactivate(session: Session, seller: User, product_id: int) -> ProductRespon
         event_source="USER")
     session.commit()
     session.refresh(product)
-    return _response(session, product)
+    return _response(session, product, base_url)
 
 
 def list_categories(session: Session) -> list[Category]:

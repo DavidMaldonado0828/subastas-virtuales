@@ -12,8 +12,10 @@ from app.repositories import statuses as status_repository
 from app.schemas.auctions import AuctionCreate, AuctionPatch, SellerAuctionItem, SellerAuctionPage
 from app.schemas.auctions import BidCreate, BidResponse, MyAuctionItem, MyAuctionPage, BidHistoryItem, BidHistoryPage
 from app.models.bid import Bid
+from app.models.product import Product
 from app.schemas.auctions import AuctionCatalogItem, AuctionCatalogPage, AuctionPublicDetail, AuctionWinner, LeaderBid, PublicProduct
 from app.services.status_history import record_status_change
+from app.services.storage import public_url
 
 #Valida que la fecha y hora de inicio y fin de la subasta sean correctas.
 def _input_utc(value: datetime, field: str) -> datetime:
@@ -38,16 +40,16 @@ def calculate_status(start_date: datetime, end_date: datetime, now: datetime, *,
     return "PROGRAMADA"
 
 #Muestra el producto público de la subasta, incluyendo el nombre, marca, imagen y categoría del producto.
-def _public_product(product, category) -> PublicProduct:
+def _public_product(product, category, base_url: str | None = None) -> PublicProduct:
     return PublicProduct(product_id=product.product_id, name=product.name,
-        brand=product.brand, image_url=product.image_url, category=category.name)
+        brand=product.brand, image_url=public_url(product.image_url, base_url), category=category.name)
 
 #Esta función crea un objeto AuctionCatalogItem a partir de una fila de resultados de la base de datos y la fecha y hora actual.
-def _catalog_item(row, now: datetime) -> AuctionCatalogItem:
+def _catalog_item(row, now: datetime, base_url: str | None = None) -> AuctionCatalogItem:
     auction, product, category, seller_alias, leader_amount, _leader_alias = row
     return AuctionCatalogItem(
         id=auction.auction_id,
-        product=_public_product(product, category),
+        product=_public_product(product, category, base_url),
         base_price=auction.base_price,
         minimum_increment=auction.minimum_increment,
         start_date=auction.start_date,
@@ -58,19 +60,19 @@ def _catalog_item(row, now: datetime) -> AuctionCatalogItem:
     )
 
 #Obtiene una lista de subastas públicas, limitadas por la cantidad y el desplazamiento especificados.
-def list_public(session: Session, *, limit: int, offset: int, status: str | None = None) -> AuctionCatalogPage:
+def list_public(session: Session, *, limit: int, offset: int, status: str | None = None, base_url: str | None = None) -> AuctionCatalogPage:
     now = datetime.now(UTC)
     rows = auction_repository.public_rows(session, limit=limit, offset=offset, status=status, now=now)
-    return AuctionCatalogPage(items=[_catalog_item(row, now) for row in rows], limit=limit, offset=offset)
+    return AuctionCatalogPage(items=[_catalog_item(row, now, base_url) for row in rows], limit=limit, offset=offset)
 
 #Devuelve los detalles públicos de una subasta específica, incluyendo el producto, el estado, la puja líder y el ganador si corresponde.
-def get_public(session: Session, auction_id: int) -> AuctionPublicDetail:
+def get_public(session: Session, auction_id: int, base_url: str | None = None) -> AuctionPublicDetail:
     rows = auction_repository.public_rows(session, limit=1, offset=0, auction_id=auction_id)
     if not rows:
         raise HTTPException(status_code=404, detail="Subasta no encontrada.")
     row = rows[0]
     now = datetime.now(UTC)
-    item = _catalog_item(row, now)
+    item = _catalog_item(row, now, base_url)
     auction, _product, _category, _seller_alias, leader_amount, leader_alias = row
     if item.status == "PROGRAMADA":
         remaining = max(0, int((_stored_utc(auction.start_date) - now).total_seconds()))
@@ -209,7 +211,7 @@ def list_my_auctions(session: Session, participant: User, *, limit: int, offset:
     return MyAuctionPage(items=items, limit=limit, offset=offset)
 
 #Muestra el historial de una subasta específica, con paginación y detalles de cada puja, incluyendo el alias del participante, el monto y la fecha de la puja.
-def list_seller_auctions(session: Session, seller: User, *, limit: int, offset: int) -> SellerAuctionPage:
+def list_seller_auctions(session: Session, seller: User, *, limit: int, offset: int, base_url: str | None = None) -> SellerAuctionPage:
     rows, total = auction_repository.list_seller_auctions(
         session, seller.user_id, limit=limit, offset=offset
     )
@@ -227,7 +229,7 @@ def list_seller_auctions(session: Session, seller: User, *, limit: int, offset: 
                 cancellation = {"reason": reason, "cancelled_at": record.cancelled_at}
         items.append(SellerAuctionItem(
             auction_id=auction.auction_id,
-            product=_public_product(product, category),
+            product=_public_product(product, category, base_url),
             base_price=auction.base_price,
             minimum_increment=auction.minimum_increment,
             start_date=auction.start_date,
@@ -239,7 +241,7 @@ def list_seller_auctions(session: Session, seller: User, *, limit: int, offset: 
     return SellerAuctionPage(items=items, limit=limit, offset=offset, total=total)
 
 #Muestra el historial de pujas de una subasta específica, con paginación y detalles de cada puja, incluyendo el alias del participante, el monto y la fecha de la puja. Los vendedores y administradores pueden ver todas las pujas, mientras que los demás usuarios solo pueden ver las cinco pujas más recientes.
-def list_bid_history(session: Session, auction_id: int, user: User | None, *, limit: int, offset: int) -> BidHistoryPage:
+def list_bid_history(session: Session, auction_id: int, user: User | None, *, limit: int, offset: int, base_url: str | None = None) -> BidHistoryPage:
     auction = auction_repository.get_by_id(session, auction_id)
     if auction is None:
         raise HTTPException(status_code=404, detail="Subasta no encontrada.")
@@ -249,5 +251,7 @@ def list_bid_history(session: Session, auction_id: int, user: User | None, *, li
     result_limit = limit if is_owner_or_admin else 5
     result_offset = offset if is_owner_or_admin else 0
     rows = bid_repository.history_rows(session, auction_id, limit=result_limit, offset=result_offset)
+    product = session.get(Product, auction.product_id)
     return BidHistoryPage(items=[BidHistoryItem(bidder_alias=alias, amount=bid.amount, bid_date=bid.bid_date)
-                                 for bid, alias in rows], limit=result_limit, offset=result_offset)
+                                 for bid, alias in rows], limit=result_limit, offset=result_offset,
+                          product_image_url=public_url(product.image_url if product else None, base_url))

@@ -1,10 +1,13 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
+from app.core.config import BACKEND_DIR
 from app.db.session import SessionLocal
 from app.jobs.auction_statuses import update_auction_statuses
 from app.routers.auth import router as auth_router
@@ -30,6 +33,9 @@ async def lifespan(app: FastAPI):
 
 #Se crea una instancia de FastAPI con el título y la versión de la API, y se define la función de vida útil que maneja la inicialización y finalización del programador de tareas.
 app = FastAPI(title="Sistema de Subastas Virtuales API", version="0.1.0", lifespan=lifespan)
+uploads_dir = BACKEND_DIR / "uploads"
+uploads_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/media", StaticFiles(directory=uploads_dir), name="media")
 
 
 #Esta función agrega el middleware CORS a la aplicación FastAPI, permitiendo solicitudes desde los orígenes especificados en la configuración.

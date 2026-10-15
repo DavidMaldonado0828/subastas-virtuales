@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 from typing import Literal
 
@@ -15,17 +15,18 @@ CatalogStatus = Literal["PROGRAMADA", "ACTIVA", "CERRADA", "FINALIZADA_SIN_GANAD
 
 @router.get("", response_model=AuctionCatalogPage)
 def public_auction_catalog(
+    request: Request,
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     status: CatalogStatus | None = Query(default=None),
     session: Session = Depends(get_db),
 ) -> AuctionCatalogPage:
-    return auction_service.list_public(session, limit=limit, offset=offset, status=status)
+    return auction_service.list_public(session, limit=limit, offset=offset, status=status, base_url=str(request.base_url))
 
 
 @router.get("/{auction_id}", response_model=AuctionPublicDetail)
-def public_auction_detail(auction_id: int, session: Session = Depends(get_db)) -> AuctionPublicDetail:
-    return auction_service.get_public(session, auction_id)
+def public_auction_detail(auction_id: int, request: Request, session: Session = Depends(get_db)) -> AuctionPublicDetail:
+    return auction_service.get_public(session, auction_id, str(request.base_url))
 
 
 @router.post("", response_model=AuctionResponse, status_code=status.HTTP_201_CREATED)
@@ -56,9 +57,10 @@ def place_bid(auction_id: int, payload: BidCreate, session: Session = Depends(ge
 @router.get("/{auction_id}/bids", response_model=BidHistoryPage)
 def bid_history(
     auction_id: int,
+    request: Request,
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     session: Session = Depends(get_db),
     current_user: User | None = Depends(get_optional_current_user),
 ) -> BidHistoryPage:
-    return auction_service.list_bid_history(session, auction_id, current_user, limit=limit, offset=offset)
+    return auction_service.list_bid_history(session, auction_id, current_user, limit=limit, offset=offset, base_url=str(request.base_url))
