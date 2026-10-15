@@ -100,6 +100,10 @@ El script intenta pujas concurrentes por el mismo monto y resume las respuestas.
 - `image_url` es opcional y nullable para permitir productos sin imagen.
 - Los montos se almacenan como `Numeric(12,2)`, adecuado para importes en COP; el ERD del SRS indicaba `Numeric(15,5)`.
 
+## Imágenes de productos
+
+El vendedor selecciona una imagen JPEG, PNG o WEBP de hasta 2 MB en el formulario del producto. El backend comprueba la firma real del archivo, la guarda con nombre UUID en `backend/uploads/products/` y la sirve bajo `/media/`; la base de datos conserva una ruta relativa. Crear un producto guarda primero sus datos y luego sube el archivo. El formulario permite reemplazar o quitar la imagen, y catálogo, detalle, historial y productos del vendedor reciben una URL pública completa o `null`. Los archivos de subida no se versionan.
+
 ## Documentación relacionada
 
 - [README del backend](backend/README.md)

@@ -66,6 +66,8 @@ Las rutas de negocio están bajo `/api/v1`. Los roles son `VENDEDOR`, `POSTOR` y
 | `PATCH` | `/api/v1/products/{product_id}` | `VENDEDOR` propietario |
 | `DELETE` | `/api/v1/products/{product_id}` | `VENDEDOR` propietario |
 | `POST` | `/api/v1/products/{product_id}/reactivate` | `VENDEDOR` propietario |
+| `POST` | `/api/v1/products/{product_id}/image` | `VENDEDOR` propietario; multipart `file` |
+| `DELETE` | `/api/v1/products/{product_id}/image` | `VENDEDOR` propietario |
 | `GET` | `/api/v1/auctions` | Público; filtro opcional `status` |
 | `GET` | `/api/v1/auctions/{auction_id}` | Público |
 | `POST` | `/api/v1/auctions` | `VENDEDOR` |
@@ -83,6 +85,10 @@ Las rutas de negocio están bajo `/api/v1`. Los roles son `VENDEDOR`, `POSTOR` y
 El catálogo público acepta `PROGRAMADA`, `ACTIVA`, `CERRADA` o `FINALIZADA_SIN_GANADOR` en `status`. Sin filtro devuelve únicamente subastas `ACTIVA` y `PROGRAMADA`; nunca incluye `CANCELADA`. El servidor ordena por estado y fecha antes de aplicar la paginación.
 
 Las rutas de productos del vendedor devuelven únicamente recursos de su propiedad. El registro de Postor requiere aceptar la política de pujas. El historial público de pujas expone alias, monto y fecha; no datos personales.
+
+### Imágenes de productos
+
+El vendedor carga JPEG, PNG o WEBP de hasta 2 MB desde el formulario del producto. La API valida la firma binaria del archivo, lo guarda con nombre UUID en `uploads/products/` y publica la ruta bajo `/media/`. La base conserva una ruta relativa; las respuestas del catálogo, detalle, historial y productos del vendedor incluyen la URL pública completa o `null`. Al reemplazar o quitar una imagen, se elimina el archivo local anterior. `uploads/` se excluye de Git.
 
 ## Reglas de negocio implementadas
 
