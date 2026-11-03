@@ -6,13 +6,14 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatRadioModule } from '@angular/material/radio';
+import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../core/auth/auth.service';
 import { RegisterableRole } from '../../core/models/auth.model';
 import { ApiErrorService } from '../../core/services/api-error.service';
 
 @Component({
   selector: 'app-register', standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatInputModule, MatRadioModule],
+  imports: [ReactiveFormsModule, RouterLink, MatButtonModule, MatCheckboxModule, MatFormFieldModule, MatInputModule, MatRadioModule, MatIconModule],
   template: `
     <main class="auth-page register-page"><section class="auth-card">
       <h1>Registrarse</h1>
@@ -35,18 +36,26 @@ import { ApiErrorService } from '../../core/services/api-error.service';
             @if (form.controls.phone_number.touched && form.controls.phone_number.invalid) { <mat-error>Ingresa tu teléfono.</mat-error> }
           </mat-form-field>
           <mat-form-field appearance="outline">
-            <mat-label>Contraseña</mat-label><input matInput type="password" formControlName="password" autocomplete="new-password" />
+            <mat-label>Contraseña</mat-label><input matInput [type]="showPassword ? 'text' : 'password'" formControlName="password" autocomplete="new-password" />
+            <button mat-icon-button matSuffix type="button" (click)="showPassword = !showPassword" [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'" [attr.aria-pressed]="showPassword">
+              <mat-icon>{{ showPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
             <mat-hint>Mínimo 8 caracteres</mat-hint>
             @if (form.controls.password.touched && form.controls.password.invalid) { <mat-error>Usa al menos 8 caracteres.</mat-error> }
           </mat-form-field>
           <mat-form-field appearance="outline">
-            <mat-label>Confirmar contraseña</mat-label><input matInput type="password" formControlName="confirmPassword" autocomplete="new-password" />
-            @if (form.controls.confirmPassword.touched && form.controls.confirmPassword.value !== form.controls.password.value) { <mat-error>Las contraseñas deben coincidir.</mat-error> }
+            <mat-label>Confirmar contraseña</mat-label><input matInput [type]="showConfirmPassword ? 'text' : 'password'" formControlName="confirmPassword" autocomplete="new-password" />
+            <button mat-icon-button matSuffix type="button" (click)="showConfirmPassword = !showConfirmPassword" [attr.aria-label]="showConfirmPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'" [attr.aria-pressed]="showConfirmPassword">
+              <mat-icon>{{ showConfirmPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
           </mat-form-field>
           <mat-form-field appearance="outline" class="full-width">
             <mat-label>Dirección (opcional)</mat-label><input matInput formControlName="address" autocomplete="street-address" />
           </mat-form-field>
         </div>
+        @if (form.controls.confirmPassword.value && form.controls.confirmPassword.value !== form.controls.password.value) {
+          <div class="field-error">Las contraseñas no coinciden. Verifica ambas antes de registrarte.</div>
+        }
         <fieldset class="role-picker">
           <legend>Quiero registrarme como:</legend>
           <mat-radio-group formControlName="role" aria-label="Tipo de cuenta">
@@ -87,6 +96,8 @@ export class RegisterComponent {
     accept_bid_policy: [false],
   });
   protected busy = false;
+  protected showPassword = false;
+  protected showConfirmPassword = false;
 
   protected get canSubmit(): boolean {
     const values = this.form.getRawValue();

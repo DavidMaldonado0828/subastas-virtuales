@@ -67,6 +67,7 @@ a:hover { text-decoration: underline; }
 
 .auth-page { width: min(100% - 32px, 580px); margin: clamp(36px, 8vh, 80px) auto; }
 .register-page { width: min(100% - 32px, 760px); }
+.register-page input[type='password']::-ms-reveal { display: none; }
 .auth-card h1 { margin: 0 0 38px; color: var(--text); font-size: clamp(2rem, 5vw, 2.7rem); letter-spacing: -.03em; }
 .auth-card form { display: flex; flex-direction: column; gap: 12px; }
 .auth-card mat-form-field { width: 100%; }
