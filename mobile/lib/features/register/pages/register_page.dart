@@ -1,10 +1,14 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/widgets/auth_snackbar.dart';
+import '../../../core/widgets/auth_link.dart';
+import '../../../core/widgets/primary_action_button.dart';
 import '../bloc/register_bloc.dart';
-import '../widgets/register_input.dart';
+import '../../auth/widgets/auth_input.dart';
+import '../../auth/bloc/login_bloc.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({required this.storage, super.key});
@@ -61,15 +65,22 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      BlocConsumer<RegisterBloc, RegisterState>(
+  Widget build(BuildContext context) => BlocListener<LoginBloc, LoginState>(
+    listener: (context, loginState) {
+      if (loginState is LoginSuccess) context.go('/inicio');
+      if (loginState is LoginFailure && loginState.message != null) {
+        showAuthSnackbar(context, loginState.message!);
+      }
+    },
+    child: BlocConsumer<RegisterBloc, RegisterState>(
         listener: (context, state) {
           if (state is RegisterFailure && state.message != null) {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(SnackBar(content: Text(state.message!)));
+            showAuthSnackbar(context, state.message!);
           }
           if (state is RegisterSuccess) {
-            context.go('/welcome', extra: state.user.alias);
+            context.read<LoginBloc>().add(
+              LoginSubmitted(state.user.email, _fields['password']!.text),
+            );
           }
         },
         builder: (context, state) {
@@ -79,7 +90,8 @@ class _RegisterPageState extends State<RegisterPage> {
           }
           return _buildForm(context, state, busy: false);
         },
-      );
+      ),
+    );
 
   Widget _buildForm(
     BuildContext context,
@@ -156,24 +168,24 @@ class _RegisterPageState extends State<RegisterPage> {
                       child: ValueListenableBuilder<TextEditingValue>(
                         valueListenable: _fields['password']!,
                         builder: (context, value, child) => IconButton(
-                              tooltip: _showPassword
-                                  ? 'Ocultar contraseña'
-                                  : 'Mostrar contraseña',
-                              onPressed: value.text.isEmpty
-                                  ? null
-                                  : () => _togglePasswordVisibility(
-                                      _fields['password']!,
-                                      confirmation: false,
-                                    ),
-                              icon: Icon(
-                                _showPassword
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
-                                color: value.text.isEmpty
-                                    ? Colors.transparent
-                                    : null,
-                              ),
-                            ),
+                          tooltip: _showPassword
+                              ? 'Ocultar contraseña'
+                              : 'Mostrar contraseña',
+                          onPressed: value.text.isEmpty
+                              ? null
+                              : () => _togglePasswordVisibility(
+                                  _fields['password']!,
+                                  confirmation: false,
+                                ),
+                          icon: Icon(
+                            _showPassword
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: value.text.isEmpty
+                                ? Colors.transparent
+                                : null,
+                          ),
+                        ),
                       ),
                     ),
                     hint: 'Mínimo 8 caracteres',
@@ -189,24 +201,24 @@ class _RegisterPageState extends State<RegisterPage> {
                       child: ValueListenableBuilder<TextEditingValue>(
                         valueListenable: _fields['confirmPassword']!,
                         builder: (context, value, child) => IconButton(
-                              tooltip: _showConfirmation
-                                  ? 'Ocultar contraseña'
-                                  : 'Mostrar contraseña',
-                              onPressed: value.text.isEmpty
-                                  ? null
-                                  : () => _togglePasswordVisibility(
-                                      _fields['confirmPassword']!,
-                                      confirmation: true,
-                                    ),
-                              icon: Icon(
-                                _showConfirmation
-                                    ? Icons.visibility_off
-                                    : Icons.visibility,
-                                color: value.text.isEmpty
-                                    ? Colors.transparent
-                                    : null,
-                              ),
-                            ),
+                          tooltip: _showConfirmation
+                              ? 'Ocultar contraseña'
+                              : 'Mostrar contraseña',
+                          onPressed: value.text.isEmpty
+                              ? null
+                              : () => _togglePasswordVisibility(
+                                  _fields['confirmPassword']!,
+                                  confirmation: true,
+                                ),
+                          icon: Icon(
+                            _showConfirmation
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            color: value.text.isEmpty
+                                ? Colors.transparent
+                                : null,
+                          ),
+                        ),
                       ),
                     ),
                     autocomplete: [AutofillHints.newPassword],
@@ -278,55 +290,30 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                   ],
                   const SizedBox(height: 20),
-                  SizedBox(
-                    height: 56,
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF6B35),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      onPressed: busy
-                          ? null
-                          : () {
-                              context.read<RegisterBloc>().add(
-                                RegisterSubmitted({
-                                  for (final entry in _fields.entries)
-                                    entry.key: entry.value.text,
-                                }),
-                              );
-                            },
-                      child: busy
-                          ? const SizedBox(
-                              width: 23,
-                              height: 23,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text(
-                              'Registrarme',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                    ),
+                  PrimaryActionButton(
+                    label: 'Registrarme',
+                    busy: busy,
+                    onPressed: busy
+                        ? null
+                        : () {
+                            context.read<RegisterBloc>().add(
+                              RegisterSubmitted({
+                                for (final entry in _fields.entries)
+                                  entry.key: entry.value.text,
+                              }),
+                            );
+                          },
                   ),
                   const Divider(height: 64),
                   Wrap(
                     alignment: WrapAlignment.start,
                     children: [
                       const Text('¿Ya tienes cuenta? '),
-                    GestureDetector(
-                        onTap: () => context.go('/login'),
-                        child: const Text(
-                          'Inicia sesión',
-                          style: TextStyle(color: Color(0xFF1A73E8)),
-                        ),
+                      AuthLink(
+                        label: 'Inicia sesión',
+                        onPressed: () {
+                          context.go('/login');
+                        },
                       ),
                     ],
                   ),
@@ -349,53 +336,17 @@ class _RegisterPageState extends State<RegisterPage> {
     bool obscure = false,
     Widget? suffix,
     String? hint,
-  }) => RegisterInput(
+  }) => AuthInput(
     key: ValueKey('register-input-$key'),
     controller: _fields[key]!,
     label: label,
-    errorText: serverErrors[key]?.isNotEmpty == true
-        ? serverErrors[key]
-        : null,
-    hasError: serverErrors.containsKey(key),
-    maxLength: maxLength,
+    errorText: serverErrors[key]?.isNotEmpty == true ? serverErrors[key] : null,
     keyboardType: keyboard,
     autofillHints: autocomplete,
     obscureText: obscure,
     suffixIcon: suffix,
-    hintText: hint,
     onChanged: (_) =>
         context.read<RegisterBloc>().add(RegisterFieldChanged(key)),
-  );
-}
-
-class WelcomePage extends StatelessWidget {
-  const WelcomePage({required this.alias, super.key});
-  final String alias;
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    body: Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '¡Bienvenido, $alias!',
-              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            FilledButton(
-              onPressed: () {
-                context.read<RegisterBloc>().add(const RegisterLoggedOut());
-                context.go('/');
-              },
-              child: const Text('Cerrar sesión'),
-            ),
-          ],
-        ),
-      ),
-    ),
   );
 }
 
