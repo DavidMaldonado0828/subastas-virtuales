@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import '../../features/auth/models/auth_models.dart';
-import '../../features/register/models/registered_user.dart';
+import '../../models/auth/auth_models.dart';
+import '../../models/register/registered_user.dart';
 
 class AuthSession extends ChangeNotifier {
   AuthSession(this.storage);
