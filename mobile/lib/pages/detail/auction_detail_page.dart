@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../bloc/detail/bid_bloc.dart';
 import '../../bloc/detail/detail_bloc.dart';
 import '../../models/detail/auction_detail.dart';
 import '../../models/detail/auction_detail_data.dart';
@@ -12,8 +14,15 @@ import '../../widgets/shared/auction_status_badge.dart';
 import '../../widgets/shared/cop_format.dart';
 
 class AuctionDetailPage extends StatefulWidget {
-  const AuctionDetailPage({required this.auctionId, super.key});
+  const AuctionDetailPage({
+    required this.auctionId,
+    required this.role,
+    required this.userAlias,
+    super.key,
+  });
   final int auctionId;
+  final String role;
+  final String userAlias;
 
   @override
   State<AuctionDetailPage> createState() => _AuctionDetailPageState();
@@ -23,6 +32,16 @@ class _AuctionDetailPageState extends State<AuctionDetailPage> {
   Timer? _timer;
   int _remainingSeconds = 0;
   bool _countdownEventSent = false;
+  bool _bidWasPlaced = false;
+  bool _allowRoutePop = false;
+
+  void _popWithBidResult() {
+    if (_allowRoutePop) return;
+    setState(() => _allowRoutePop = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.pop(_bidWasPlaced);
+    });
+  }
 
   @override
   void initState() {
@@ -63,92 +82,140 @@ class _AuctionDetailPageState extends State<AuctionDetailPage> {
   }
 
   @override
-  Widget build(BuildContext context) => BlocListener<DetailBloc, DetailState>(
-    listenWhen: (previous, current) =>
-        current is DetailSuccess &&
-        (previous is! DetailSuccess || previous.data != current.data),
-    listener: (context, state) {
-      if (state is DetailSuccess) {
-        setState(() => _startCountdown(state.detail));
-      }
-    },
-    child: Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          tooltip: 'Volver',
-          onPressed: () => context.pop(),
-          icon: const Icon(Icons.arrow_back),
-        ),
-        title: const Text('Detalle de subasta'),
-        actions: [
-          BlocBuilder<DetailBloc, DetailState>(
-            builder: (context, state) {
-              if (state is! DetailSuccess ||
-                  !{'PROGRAMADA', 'ACTIVA'}.contains(state.detail.auction.status)) {
-                return const SizedBox.shrink();
-              }
-              return IconButton(
-                tooltip: 'Actualizar',
-                onPressed: state is DetailLoading
-                    ? null
-                    : () => context
-                        .read<DetailBloc>()
-                        .add(const DetailRefreshRequested()),
-                icon: const Icon(Icons.refresh),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
-          child: BlocBuilder<DetailBloc, DetailState>(
-            builder: (context, state) {
-              if (state is DetailInitial ||
-                  (state is DetailLoading && state.previousData == null)) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (state is DetailNotFound) {
-                return _MessageView(
-                  message: 'Subasta no encontrada',
-                  action: 'Volver',
-                  onPressed: () => context.pop(),
-                );
-              }
-              if (state is DetailError) {
-                return _MessageView(
-                  message: state.message,
-                  action: 'Reintentar',
-                  onPressed: () => context
-                      .read<DetailBloc>()
-                      .add(DetailLoadRequested(widget.auctionId)),
-                );
-              }
-              final data = switch (state) {
-                DetailSuccess(:final data) => data,
-                DetailLoading(previousData: final data?) => data,
-                _ => null,
-              };
-              if (data == null) return const SizedBox.shrink();
-              return RefreshIndicator(
-                onRefresh: () async {
-                  final bloc = context.read<DetailBloc>();
-                  bloc.add(const DetailRefreshRequested());
-                  await bloc.stream.firstWhere((next) => next is! DetailLoading);
-                },
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
-                  children: [
-                    _DetailContent(
-                      data: data,
-                      remainingSeconds: _remainingSeconds,
-                    ),
-                  ],
+  Widget build(BuildContext context) => MultiBlocListener(
+    listeners: [
+      BlocListener<DetailBloc, DetailState>(
+        listenWhen: (previous, current) =>
+            current is DetailSuccess &&
+            (previous is! DetailSuccess || previous.data != current.data),
+        listener: (context, state) {
+          if (state is DetailSuccess) {
+            setState(() => _startCountdown(state.detail));
+            final auction = state.detail.auction;
+            final isLeader =
+                state.detail.leaderBid?.bidderAlias == widget.userAlias;
+            if (widget.role == 'POSTOR' &&
+                auction.status == 'ACTIVA' &&
+                !isLeader) {
+              context.read<BidBloc>().add(
+                BidConfigured(
+                  auctionId: auction.id,
+                  minimumAmount: state.detail.minimumBid,
                 ),
               );
-            },
+            }
+          }
+        },
+      ),
+      BlocListener<BidBloc, BidState>(
+        listenWhen: (_, current) =>
+            current is BidFailed || current is BidSucceeded,
+        listener: (context, state) {
+          if (state is BidSucceeded) {
+            _bidWasPlaced = true;
+            ScaffoldMessenger.of(context)
+                .showSnackBar(const SnackBar(content: Text('Puja registrada')));
+            context.read<DetailBloc>().add(const DetailRefreshRequested());
+          } else if (state is BidFailed) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(state.message)));
+            if (state.shouldRefresh) {
+              context.read<DetailBloc>().add(const DetailRefreshRequested());
+            }
+          }
+        },
+      ),
+    ],
+    child: PopScope<Object?>(
+      canPop: _allowRoutePop,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _popWithBidResult();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            tooltip: 'Volver',
+            onPressed: _popWithBidResult,
+            icon: const Icon(Icons.arrow_back),
+          ),
+          title: const Text('Detalle de subasta'),
+          actions: [
+            BlocBuilder<DetailBloc, DetailState>(
+              builder: (context, state) {
+                if (state is! DetailSuccess ||
+                    !{
+                      'PROGRAMADA',
+                      'ACTIVA',
+                    }.contains(state.detail.auction.status)) {
+                  return const SizedBox.shrink();
+                }
+                return IconButton(
+                  tooltip: 'Actualizar',
+                  onPressed: state is DetailLoading
+                      ? null
+                      : () => context.read<DetailBloc>().add(
+                          const DetailRefreshRequested(),
+                        ),
+                  icon: const Icon(Icons.refresh),
+                );
+              },
+            ),
+          ],
+        ),
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: BlocBuilder<DetailBloc, DetailState>(
+              builder: (context, state) {
+                if (state is DetailInitial ||
+                    (state is DetailLoading && state.previousData == null)) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (state is DetailNotFound) {
+                  return _MessageView(
+                    message: 'Subasta no encontrada',
+                    action: 'Volver',
+                    onPressed: () => context.pop(),
+                  );
+                }
+                if (state is DetailError) {
+                  return _MessageView(
+                    message: state.message,
+                    action: 'Reintentar',
+                    onPressed: () => context.read<DetailBloc>().add(
+                      DetailLoadRequested(widget.auctionId),
+                    ),
+                  );
+                }
+                final data = switch (state) {
+                  DetailSuccess(:final data) => data,
+                  DetailLoading(previousData: final data?) => data,
+                  _ => null,
+                };
+                if (data == null) return const SizedBox.shrink();
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    final bloc = context.read<DetailBloc>();
+                    bloc.add(const DetailRefreshRequested());
+                    await bloc.stream.firstWhere(
+                      (next) => next is! DetailLoading,
+                    );
+                  },
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+                    children: [
+                      _DetailContent(
+                        data: data,
+                        remainingSeconds: _remainingSeconds,
+                        role: widget.role,
+                        userAlias: widget.userAlias,
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -160,10 +227,14 @@ class _DetailContent extends StatelessWidget {
   const _DetailContent({
     required this.data,
     required this.remainingSeconds,
+    required this.role,
+    required this.userAlias,
   });
 
   final AuctionDetailData data;
   final int remainingSeconds;
+  final String role;
+  final String userAlias;
 
   @override
   Widget build(BuildContext context) {
@@ -199,10 +270,7 @@ class _DetailContent extends StatelessWidget {
               const SizedBox(height: 16),
               Text(
                 auction.category,
-                style: const TextStyle(
-                  color: Color(0xFF6B7280),
-                  fontSize: 14,
-                ),
+                style: const TextStyle(color: Color(0xFF6B7280), fontSize: 14),
               ),
               const SizedBox(height: 4),
               Text(
@@ -293,13 +361,15 @@ class _DetailContent extends StatelessWidget {
                 ),
               ] else if (auction.status == 'FINALIZADA_SIN_GANADOR') ...[
                 const SizedBox(height: 14),
-                const _ResultBanner(
-                  text: 'La subasta terminó sin ganador',
-                ),
+                const _ResultBanner(text: 'La subasta terminó sin ganador'),
               ],
             ],
           ),
         ),
+        if (role == 'POSTOR' && auction.status == 'ACTIVA') ...[
+          const SizedBox(height: 12),
+          _BidParticipation(detail: detail, userAlias: userAlias),
+        ],
         const SizedBox(height: 16),
         _DetailCard(
           child: Column(
@@ -307,10 +377,7 @@ class _DetailContent extends StatelessWidget {
             children: [
               const Text(
                 'Top 5 de pujas',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
               ),
               if (data.bidsError != null) ...[
                 const SizedBox(height: 10),
@@ -334,8 +401,181 @@ class _DetailContent extends StatelessWidget {
   }
 }
 
+class _BidParticipation extends StatelessWidget {
+  const _BidParticipation({required this.detail, required this.userAlias});
+
+  final AuctionDetail detail;
+  final String userAlias;
+
+  @override
+  Widget build(BuildContext context) {
+    final leader = detail.leaderBid;
+    if (leader?.bidderAlias == userAlias) {
+      final amount = detail.auction.currentLeaderAmount ?? leader!.amount;
+      return _ResultBanner(text: 'Vas ganando con ${cop(amount)}');
+    }
+    final minimum = detail.minimumBid;
+    if (minimum == null) {
+      return const _DetailCard(
+        child: Text(
+          'No se pudo calcular el mínimo de puja con los datos recibidos.',
+          style: TextStyle(color: Color(0xFFB42318)),
+        ),
+      );
+    }
+    return _BidForm(auctionId: detail.auction.id, minimumAmount: minimum);
+  }
+}
+
+class _BidForm extends StatefulWidget {
+  const _BidForm({required this.auctionId, required this.minimumAmount});
+
+  final int auctionId;
+  final int minimumAmount;
+
+  @override
+  State<_BidForm> createState() => _BidFormState();
+}
+
+class _BidFormState extends State<_BidForm> {
+  late final TextEditingController _amountController;
+
+  @override
+  void initState() {
+    super.initState();
+    _amountController = TextEditingController(
+      text: context.read<BidBloc>().state.amountText,
+    );
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _confirmAndSubmit(int amount) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        content: Text(
+          '¿Confirmas tu puja de ${cop(amount)}? Es vinculante y no se puede retirar.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Confirmar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted) {
+      context.read<BidBloc>().add(const BidSubmitRequested());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => BlocListener<BidBloc, BidState>(
+    listenWhen: (previous, current) =>
+        previous.amountText != current.amountText,
+    listener: (context, state) {
+      if (_amountController.text != state.amountText) {
+        _amountController.value = TextEditingValue(
+          text: state.amountText,
+          selection: TextSelection.collapsed(offset: state.amountText.length),
+        );
+      }
+    },
+    child: BlocBuilder<BidBloc, BidState>(
+      builder: (context, state) => _DetailCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _amountController,
+                    enabled: !state.isSubmitting,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: (value) =>
+                        context.read<BidBloc>().add(BidAmountChanged(value)),
+                    decoration: InputDecoration(
+                      labelText: 'Ingresa tu puja',
+                      prefixText: '\$ ',
+                      helperText: 'Mínimo: ${cop(widget.minimumAmount)}',
+                      errorText: state.validationMessage,
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 2),
+                IconButton(
+                  tooltip: 'Disminuir monto',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: state.isSubmitting
+                      ? null
+                      : () => context.read<BidBloc>().add(
+                          const BidAmountAdjusted(-10000),
+                        ),
+                  icon: const Icon(Icons.remove),
+                ),
+                IconButton(
+                  tooltip: 'Aumentar monto',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: state.isSubmitting
+                      ? null
+                      : () => context.read<BidBloc>().add(
+                          const BidAmountAdjusted(10000),
+                        ),
+                  icon: const Icon(Icons.add),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Las pujas son vinculantes y no se pueden retirar.',
+              style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+            ),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton(
+                onPressed: state.isSubmitting || !state.isValid
+                    ? null
+                    : () => _confirmAndSubmit(state.parsedAmount!),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF6B35),
+                  foregroundColor: Colors.white,
+                ),
+                child: state.isSubmitting
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Pujar'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 class _DetailCard extends StatelessWidget {
-  const _DetailCard({required this.child, this.padding = const EdgeInsets.all(16)});
+  const _DetailCard({
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+  });
   final Widget child;
   final EdgeInsetsGeometry padding;
 
@@ -365,10 +605,7 @@ class _NoImage extends StatelessWidget {
   Widget build(BuildContext context) => const ColoredBox(
     color: Color(0xFFE5E7EB),
     child: Center(
-      child: Text(
-        'Sin imagen',
-        style: TextStyle(color: Color(0xFF6B7280)),
-      ),
+      child: Text('Sin imagen', style: TextStyle(color: Color(0xFF6B7280))),
     ),
   );
 }
@@ -431,7 +668,8 @@ String _formatCountdown(int seconds) {
   final hours = (seconds % 86400) ~/ 3600;
   final minutes = (seconds % 3600) ~/ 60;
   final remainder = seconds % 60;
-  final time = '${hours.toString().padLeft(2, '0')}:'
+  final time =
+      '${hours.toString().padLeft(2, '0')}:'
       '${minutes.toString().padLeft(2, '0')}:'
       '${remainder.toString().padLeft(2, '0')}';
   return days > 0 ? '$days d $time' : time;
@@ -448,10 +686,7 @@ class _ResultBanner extends StatelessWidget {
       color: const Color(0xFFF3F4F6),
       borderRadius: BorderRadius.circular(8),
     ),
-    child: Text(
-      text,
-      style: const TextStyle(color: Color(0xFF1F2937)),
-    ),
+    child: Text(text, style: const TextStyle(color: Color(0xFF1F2937))),
   );
 }
 
@@ -497,8 +732,18 @@ class _BidRow extends StatelessWidget {
 
 String _formatLocalDate(DateTime value) {
   const months = [
-    'ene', 'feb', 'mar', 'abr', 'may', 'jun',
-    'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+    'ene',
+    'feb',
+    'mar',
+    'abr',
+    'may',
+    'jun',
+    'jul',
+    'ago',
+    'sep',
+    'oct',
+    'nov',
+    'dic',
   ];
   final local = value.toLocal();
   final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
@@ -534,7 +779,9 @@ class _MessageView extends StatelessWidget {
           const SizedBox(height: 12),
           TextButton(
             onPressed: onPressed,
-            style: TextButton.styleFrom(foregroundColor: const Color(0xFF1A73E8)),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF1A73E8),
+            ),
             child: Text(action),
           ),
         ],

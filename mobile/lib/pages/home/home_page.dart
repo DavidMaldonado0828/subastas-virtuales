@@ -30,7 +30,8 @@ class _HomeContent extends StatefulWidget {
   State<_HomeContent> createState() => _HomeContentState();
 }
 
-class _HomeContentState extends State<_HomeContent> with SingleTickerProviderStateMixin {
+class _HomeContentState extends State<_HomeContent>
+    with SingleTickerProviderStateMixin {
   late final TabController _tabs;
   final _scroll = ScrollController();
 
@@ -44,7 +45,9 @@ class _HomeContentState extends State<_HomeContent> with SingleTickerProviderSta
 
   void _onTabChanged() {
     if (_tabs.indexIsChanging) return;
-    context.read<HomeBloc>().add(HomeTabChanged(_tabs.index == 0 ? HomeTab.available : HomeTab.closed));
+    context.read<HomeBloc>().add(
+      HomeTabChanged(_tabs.index == 0 ? HomeTab.available : HomeTab.closed),
+    );
     if (_scroll.hasClients) _scroll.jumpTo(0);
   }
 
@@ -67,9 +70,16 @@ class _HomeContentState extends State<_HomeContent> with SingleTickerProviderSta
     final user = widget.session.user;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SubastaX', style: TextStyle(fontWeight: FontWeight.w800)),
+        title: const Text(
+          'SubastaX',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
         actions: [
-          Flexible(child: Center(child: Text(user?.alias ?? '', overflow: TextOverflow.ellipsis))),
+          Flexible(
+            child: Center(
+              child: Text(user?.alias ?? '', overflow: TextOverflow.ellipsis),
+            ),
+          ),
           const SizedBox(width: 8),
           _RoleBadge(role: user?.role ?? ''),
           IconButton(
@@ -87,58 +97,112 @@ class _HomeContentState extends State<_HomeContent> with SingleTickerProviderSta
           constraints: const BoxConstraints(maxWidth: 600),
           child: SizedBox(
             width: double.infinity,
-            child: Column(children: [
-        TabBar(
-          controller: _tabs,
-          labelColor: const Color(0xFF1A73E8),
-          indicatorColor: const Color(0xFF1A73E8),
-          tabs: const [Tab(text: 'Disponibles'), Tab(text: 'Cerradas')],
-        ),
-        Expanded(child: BlocBuilder<HomeBloc, HomeState>(
-          builder: (context, state) {
-            if (state is HomeLoading && state.items.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final list = ListView.builder(
-              controller: _scroll,
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-              itemCount: state.items.length + (state is HomeLoading || state is HomeError ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index < state.items.length) {
-                  final auction = state.items[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () => context.push('/subasta/${auction.id}'),
-                      child: AuctionCard(
-                        auction: auction,
-                        participation: state.participation[auction.id],
-                      ),
-                    ),
-                  );
-                }
-                if (state is HomeLoading) return const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator()));
-                if (state is HomeError) return _ErrorPanel(message: state.message!, onRetry: () => context.read<HomeBloc>().add(const HomeLoadMoreRequested()));
-                return const SizedBox.shrink();
-              },
-            );
-            return RefreshIndicator(
-              onRefresh: () async {
-                final bloc = context.read<HomeBloc>();
-                bloc.add(const HomeRefreshRequested());
-                await bloc.stream.firstWhere((next) => next is! HomeLoading);
-              },
-              child: state is HomeEmpty
-                  ? ListView(physics: const AlwaysScrollableScrollPhysics(), children: const [SizedBox(height: 180), Center(child: Text('No hay subastas para mostrar'))])
-                  : state is HomeError && state.items.isEmpty
-                      ? ListView(physics: const AlwaysScrollableScrollPhysics(), children: [const SizedBox(height: 120), _ErrorPanel(message: state.message!, onRetry: () => context.read<HomeBloc>().add(const HomeLoadRequested()))])
-                      : list,
-            );
-          },
-        )),
-            ]),
+            child: Column(
+              children: [
+                TabBar(
+                  controller: _tabs,
+                  labelColor: const Color(0xFF1A73E8),
+                  indicatorColor: const Color(0xFF1A73E8),
+                  tabs: const [
+                    Tab(text: 'Disponibles'),
+                    Tab(text: 'Cerradas'),
+                  ],
+                ),
+                Expanded(
+                  child: BlocBuilder<HomeBloc, HomeState>(
+                    builder: (context, state) {
+                      if (state is HomeLoading && state.items.isEmpty) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      final list = ListView.builder(
+                        controller: _scroll,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+                        itemCount:
+                            state.items.length +
+                            (state is HomeLoading || state is HomeError
+                                ? 1
+                                : 0),
+                        itemBuilder: (context, index) {
+                          if (index < state.items.length) {
+                            final auction = state.items[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () async {
+                                  final bidPlaced = await context.push<bool>(
+                                    '/subasta/${auction.id}',
+                                  );
+                                  if (bidPlaced == true && context.mounted) {
+                                    context.read<HomeBloc>().add(
+                                      const HomeRefreshRequested(),
+                                    );
+                                  }
+                                },
+                                child: AuctionCard(
+                                  auction: auction,
+                                  participation:
+                                      state.participation[auction.id],
+                                ),
+                              ),
+                            );
+                          }
+                          if (state is HomeLoading) {
+                            return const Padding(
+                              padding: EdgeInsets.all(20),
+                              child: Center(child: CircularProgressIndicator()),
+                            );
+                          }
+                          if (state is HomeError) {
+                            return _ErrorPanel(
+                              message: state.message!,
+                              onRetry: () => context.read<HomeBloc>().add(
+                                const HomeLoadMoreRequested(),
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      );
+                      return RefreshIndicator(
+                        onRefresh: () async {
+                          final bloc = context.read<HomeBloc>();
+                          bloc.add(const HomeRefreshRequested());
+                          await bloc.stream.firstWhere(
+                            (next) => next is! HomeLoading,
+                          );
+                        },
+                        child: state is HomeEmpty
+                            ? ListView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                children: const [
+                                  SizedBox(height: 180),
+                                  Center(
+                                    child: Text('No hay subastas para mostrar'),
+                                  ),
+                                ],
+                              )
+                            : state is HomeError && state.items.isEmpty
+                            ? ListView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                children: [
+                                  const SizedBox(height: 120),
+                                  _ErrorPanel(
+                                    message: state.message!,
+                                    onRetry: () => context.read<HomeBloc>().add(
+                                      const HomeLoadRequested(),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : list,
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -156,7 +220,17 @@ class _RoleBadge extends StatelessWidget {
       'VENDEDOR' => ('Vendedor', const Color(0xFFFFEDD5)),
       _ => ('Participante', const Color(0xFFDBEAFE)),
     };
-    return Container(padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5), decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(30)), child: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)));
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+      ),
+    );
   }
 }
 
@@ -167,10 +241,17 @@ class _ErrorPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.all(24),
-    child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Text(message, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFB42318))),
-      const SizedBox(height: 12),
-      OutlinedButton(onPressed: onRetry, child: const Text('Reintentar')),
-    ]),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Color(0xFFB42318)),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton(onPressed: onRetry, child: const Text('Reintentar')),
+      ],
+    ),
   );
 }

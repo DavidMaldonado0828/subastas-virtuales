@@ -9,6 +9,7 @@ import 'core/network/api_client.dart';
 import 'bloc/auth/login_bloc.dart';
 import 'bloc/register/register_bloc.dart';
 import 'bloc/detail/detail_bloc.dart';
+import 'bloc/detail/bid_bloc.dart';
 import 'pages/auth/login_page.dart';
 import 'pages/home/home_page.dart';
 import 'pages/register/register_page.dart';
@@ -105,10 +106,18 @@ class SubastasApp extends StatelessWidget {
         GoRoute(
           path: '/subasta/:id',
           builder: (context, state) {
-            final auctionId = int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
-            return BlocProvider(
-              create: (_) => DetailBloc(detailRepository),
-              child: AuctionDetailPage(auctionId: auctionId),
+            final auctionId =
+                int.tryParse(state.pathParameters['id'] ?? '') ?? 0;
+            return MultiBlocProvider(
+              providers: [
+                BlocProvider(create: (_) => DetailBloc(detailRepository)),
+                BlocProvider(create: (_) => BidBloc(detailRepository)),
+              ],
+              child: AuctionDetailPage(
+                auctionId: auctionId,
+                role: session.user?.role ?? '',
+                userAlias: session.user?.alias ?? '',
+              ),
             );
           },
         ),

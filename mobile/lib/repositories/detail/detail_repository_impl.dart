@@ -15,4 +15,8 @@ class DetailRepositoryImpl implements DetailRepository {
   @override
   Future<List<BidHistoryItem>> fetchBids(int auctionId) =>
       service.fetchBids(auctionId);
+
+  @override
+  Future<void> placeBid(int auctionId, int amount) =>
+      service.placeBid(auctionId, amount);
 }

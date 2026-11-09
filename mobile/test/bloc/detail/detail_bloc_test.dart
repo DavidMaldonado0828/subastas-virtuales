@@ -10,6 +10,7 @@ import 'package:movil/repositories/detail/detail_repository.dart';
 class FakeDetailRepository implements DetailRepository {
   Future<AuctionDetail> Function(int) detailCall = (_) async => activeDetail;
   Future<List<BidHistoryItem>> Function(int) bidsCall = (_) async => [bid];
+  Future<void> Function(int, int) placeBidCall = (_, _) async {};
   int detailRequests = 0;
   int bidRequests = 0;
 
@@ -24,6 +25,10 @@ class FakeDetailRepository implements DetailRepository {
     bidRequests++;
     return bidsCall(auctionId);
   }
+
+  @override
+  Future<void> placeBid(int auctionId, int amount) =>
+      placeBidCall(auctionId, amount);
 }
 
 AuctionDetail detail({String status = 'ACTIVA', int remainingSeconds = 60}) =>

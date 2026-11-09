@@ -31,8 +31,16 @@ class DetailService {
     final items = response.data!['items'] as List<dynamic>;
     return List.unmodifiable(
       items.map(
-        (item) => BidHistoryItem.fromJson(Map<String, dynamic>.from(item as Map)),
+        (item) =>
+            BidHistoryItem.fromJson(Map<String, dynamic>.from(item as Map)),
       ),
+    );
+  }
+
+  Future<void> placeBid(int auctionId, int amount) async {
+    await client.dio.post<Map<String, dynamic>>(
+      '/auctions/$auctionId/bids',
+      data: {'amount': amount},
     );
   }
 }
