@@ -1,5 +1,15 @@
 import 'package:equatable/equatable.dart';
 
+class AuctionParticipation extends Equatable {
+  const AuctionParticipation({required this.status, required this.isLeader});
+
+  final String status;
+  final bool isLeader;
+
+  @override
+  List<Object?> get props => [status, isLeader];
+}
+
 class Auction extends Equatable {
   const Auction({
     required this.id,
@@ -75,5 +85,35 @@ class AuctionPage {
         .toList(growable: false),
     limit: json['limit'] as int,
     offset: json['offset'] as int,
+  );
+}
+
+class MyAuctionParticipation {
+  const MyAuctionParticipation({
+    required this.auctionId,
+    required this.status,
+    required this.isLeader,
+  });
+
+  final int auctionId;
+  final String status;
+  final bool isLeader;
+
+  factory MyAuctionParticipation.fromJson(Map<String, dynamic> json) =>
+      MyAuctionParticipation(
+        auctionId: json['auction_id'] as int,
+        status: json['status'] as String,
+        isLeader: json['is_leader'] as bool,
+      );
+}
+
+class MyAuctionPage {
+  const MyAuctionPage({required this.items});
+  final List<MyAuctionParticipation> items;
+
+  factory MyAuctionPage.fromJson(Map<String, dynamic> json) => MyAuctionPage(
+    items: (json['items'] as List<dynamic>)
+        .map((item) => MyAuctionParticipation.fromJson(item as Map<String, dynamic>))
+        .toList(growable: false),
   );
 }

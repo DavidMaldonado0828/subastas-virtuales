@@ -9,4 +9,8 @@ class AuctionRepositoryImpl implements AuctionRepository {
   @override
   Future<AuctionPage> fetch({required int limit, required int offset, bool closed = false}) =>
       service.fetch(limit: limit, offset: offset, closed: closed);
+
+  @override
+  Future<MyAuctionPage> fetchMyAuctions({required int limit, required int offset}) =>
+      service.fetchMyAuctions(limit: limit, offset: offset);
 }

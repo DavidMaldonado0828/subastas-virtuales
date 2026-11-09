@@ -6,21 +6,38 @@ import '../../core/auth/auth_session.dart';
 import '../../bloc/home/home_bloc.dart';
 import '../../widgets/home/auction_card.dart';
 
-class HomePage extends StatefulWidget {
+class HomePage extends StatelessWidget {
   const HomePage({required this.session, super.key});
   final AuthSession session;
+
   @override
-  State<HomePage> createState() => _HomePageState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => HomeBloc(
+        context.read(),
+        loadParticipation: session.user?.role == 'POSTOR',
+      )..add(const HomeLoadRequested()),
+      child: _HomeContent(session: session),
+    );
+  }
 }
 
-class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
+class _HomeContent extends StatefulWidget {
+  const _HomeContent({required this.session});
+  final AuthSession session;
+
+  @override
+  State<_HomeContent> createState() => _HomeContentState();
+}
+
+class _HomeContentState extends State<_HomeContent> with SingleTickerProviderStateMixin {
   late final TabController _tabs;
   final _scroll = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 2, vsync: this);
+    _tabs = TabController(length: 2, vsync: this, initialIndex: 0);
     _tabs.addListener(_onTabChanged);
     _scroll.addListener(_onScroll);
   }
@@ -88,7 +105,20 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
               itemCount: state.items.length + (state is HomeLoading || state is HomeError ? 1 : 0),
               itemBuilder: (context, index) {
-                if (index < state.items.length) return Padding(padding: const EdgeInsets.only(bottom: 8), child: AuctionCard(auction: state.items[index]));
+                if (index < state.items.length) {
+                  final auction = state.items[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => context.push('/subasta/${auction.id}'),
+                      child: AuctionCard(
+                        auction: auction,
+                        participation: state.participation[auction.id],
+                      ),
+                    ),
+                  );
+                }
                 if (state is HomeLoading) return const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator()));
                 if (state is HomeError) return _ErrorPanel(message: state.message!, onRetry: () => context.read<HomeBloc>().add(const HomeLoadMoreRequested()));
                 return const SizedBox.shrink();

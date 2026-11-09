@@ -6,6 +6,7 @@ import '../../models/home/auction.dart';
 import '../../repositories/home/auction_repository.dart';
 
 const homePageSize = 10;
+const participationPageSize = 100;
 
 enum HomeTab { available, closed }
 
@@ -26,33 +27,73 @@ final class HomeTabChanged extends HomeEvent {
 }
 
 sealed class HomeState extends Equatable {
-  const HomeState({required this.tab, required this.items, required this.hasMore, this.message});
+  const HomeState({
+    required this.tab,
+    required this.itemsByTab,
+    required this.hasMore,
+    this.participation = const {},
+    this.message,
+  });
+
   final HomeTab tab;
-  final List<Auction> items;
+  final Map<HomeTab, List<Auction>> itemsByTab;
   final bool hasMore;
+  final Map<int, AuctionParticipation> participation;
   final String? message;
+  List<Auction> get items => itemsByTab[tab] ?? const [];
+
   @override
-  List<Object?> get props => [tab, items, hasMore, message];
+  List<Object?> get props => [tab, itemsByTab, hasMore, participation, message];
 }
 
 final class HomeInitial extends HomeState {
-  const HomeInitial({super.tab = HomeTab.available, super.items = const [], super.hasMore = true});
+  const HomeInitial({
+    super.tab = HomeTab.available,
+    super.itemsByTab = const {},
+    super.hasMore = true,
+    super.participation,
+  });
 }
+
 final class HomeLoading extends HomeState {
-  const HomeLoading({required super.tab, required super.items, required super.hasMore});
+  const HomeLoading({
+    required super.tab,
+    required super.itemsByTab,
+    required super.hasMore,
+    super.participation,
+  });
 }
+
 final class HomeSuccess extends HomeState {
-  const HomeSuccess({required super.tab, required super.items, required super.hasMore});
+  const HomeSuccess({
+    required super.tab,
+    required super.itemsByTab,
+    required super.hasMore,
+    super.participation,
+  });
 }
+
 final class HomeEmpty extends HomeState {
-  const HomeEmpty({required super.tab}) : super(items: const [], hasMore: false);
+  const HomeEmpty({
+    required super.tab,
+    required super.itemsByTab,
+    super.participation,
+  }) : super(hasMore: false);
 }
+
 final class HomeError extends HomeState {
-  const HomeError({required super.tab, required super.items, required super.hasMore, required String error}) : super(message: error);
+  const HomeError({
+    required super.tab,
+    required super.itemsByTab,
+    required super.hasMore,
+    required String error,
+    super.participation,
+  }) : super(message: error);
 }
 
 class HomeBloc extends Bloc<HomeEvent, HomeState> {
-  HomeBloc(this.repository) : super(const HomeInitial()) {
+  HomeBloc(this.repository, {this.loadParticipation = false})
+    : super(const HomeInitial()) {
     on<HomeLoadRequested>(_load);
     on<HomeLoadMoreRequested>(_loadMore);
     on<HomeRefreshRequested>(_refresh);
@@ -60,67 +101,157 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   }
 
   final AuctionRepository repository;
+  final bool loadParticipation;
+  HomeTab _activeTab = HomeTab.available;
   final Map<HomeTab, List<Auction>> _items = {for (final tab in HomeTab.values) tab: []};
   final Map<HomeTab, bool> _hasMore = {for (final tab in HomeTab.values) tab: true};
   final Map<HomeTab, bool> _loaded = {for (final tab in HomeTab.values) tab: false};
+  final Map<HomeTab, bool> _loading = {for (final tab in HomeTab.values) tab: false};
   final Map<HomeTab, String?> _errors = {for (final tab in HomeTab.values) tab: null};
+  Map<int, AuctionParticipation> _participation = const {};
+  int _participationRequest = 0;
 
   bool _isClosed(HomeTab tab) => tab == HomeTab.closed;
 
   Future<void> _load(HomeLoadRequested event, Emitter<HomeState> emit) async {
-    if (_loaded[state.tab] == true) return;
-    await _fetchPage(state.tab, emit, reset: true);
+    final active = _activeTab;
+    if (!_loaded[active]!) await _fetchPage(active, emit, reset: true);
+    if (loadParticipation) await _fetchParticipation(emit);
   }
 
   Future<void> _refresh(HomeRefreshRequested event, Emitter<HomeState> emit) async {
-    await _fetchPage(state.tab, emit, reset: true);
+    final participationFuture = loadParticipation
+        ? _fetchParticipation(emit)
+        : Future<void>.value();
+    await _fetchPage(_activeTab, emit, reset: true);
+    await participationFuture;
   }
 
   Future<void> _loadMore(HomeLoadMoreRequested event, Emitter<HomeState> emit) async {
-    final tab = state.tab;
-    if (!_loaded[tab]! || !_hasMore[tab]! || state is HomeLoading) return;
+    final tab = _activeTab;
+    if (!_loaded[tab]! || !_hasMore[tab]! || _loading[tab]!) return;
     await _fetchPage(tab, emit, reset: false);
   }
 
   Future<void> _changeTab(HomeTabChanged event, Emitter<HomeState> emit) async {
     final tab = event.tab;
-    if (tab == state.tab) return;
+    if (tab == _activeTab) return;
+    _activeTab = tab;
     if (_loaded[tab]!) {
-      _emitContent(emit, tab);
-    } else {
-      await _fetchPage(tab, emit, reset: true);
+      _emitActive(emit);
+      return;
     }
+    if (_loading[tab]!) {
+      _emitActive(emit);
+      return;
+    }
+    await _fetchPage(tab, emit, reset: true);
   }
 
-  Future<void> _fetchPage(HomeTab tab, Emitter<HomeState> emit, {required bool reset}) async {
+  Future<void> _fetchPage(
+    HomeTab tab,
+    Emitter<HomeState> emit, {
+    required bool reset,
+  }) async {
+    if (_loading[tab]!) {
+      if (tab == _activeTab) _emitActive(emit);
+      return;
+    }
     final currentItems = List<Auction>.of(_items[tab]!);
     _errors[tab] = null;
-    emit(HomeLoading(tab: tab, items: currentItems, hasMore: _hasMore[tab]!));
+    _loading[tab] = true;
+    _emitActive(emit);
     try {
       final page = await repository.fetch(
         limit: homePageSize,
         offset: reset ? 0 : currentItems.length,
         closed: _isClosed(tab),
       );
-      final updated = reset ? page.items : [...currentItems, ...page.items];
-      _items[tab] = updated;
+      _items[tab] = List<Auction>.unmodifiable(
+        reset ? page.items : [...currentItems, ...page.items],
+      );
       _hasMore[tab] = page.items.length == homePageSize;
       _loaded[tab] = true;
-      _emitContent(emit, tab);
     } catch (error) {
       _errors[tab] = _errorMessage(error);
-      emit(HomeError(tab: tab, items: List.unmodifiable(currentItems), hasMore: _hasMore[tab]!, error: _errors[tab]!));
+    } finally {
+      _loading[tab] = false;
+      _emitActive(emit);
     }
   }
 
-  void _emitContent(Emitter<HomeState> emit, HomeTab tab) {
-    final items = List<Auction>.unmodifiable(_items[tab]!);
-    if (_errors[tab] != null) {
-      emit(HomeError(tab: tab, items: items, hasMore: _hasMore[tab]!, error: _errors[tab]!));
-    } else if (items.isEmpty) {
-      emit(HomeEmpty(tab: tab));
+  Future<void> _fetchParticipation(Emitter<HomeState> emit) async {
+    final requestId = ++_participationRequest;
+    final result = <int, AuctionParticipation>{};
+    try {
+      var offset = 0;
+      while (true) {
+        final page = await repository.fetchMyAuctions(
+          limit: participationPageSize,
+          offset: offset,
+        );
+        for (final item in page.items) {
+          result[item.auctionId] = AuctionParticipation(
+            status: item.status,
+            isLeader: item.isLeader,
+          );
+        }
+        if (page.items.length < participationPageSize) break;
+        offset += page.items.length;
+      }
+      if (requestId == _participationRequest) {
+        _participation = Map.unmodifiable(result);
+        _emitActive(emit);
+      }
+    } catch (_) {
+      if (requestId == _participationRequest) {
+        _participation = const {};
+        _emitActive(emit);
+      }
+    }
+  }
+
+  void _emitActive(Emitter<HomeState> emit) {
+    final itemsByTab = Map<HomeTab, List<Auction>>.unmodifiable({
+      for (final tab in HomeTab.values)
+        tab: List<Auction>.unmodifiable(_items[tab]!),
+    });
+    final hasMore = _hasMore[_activeTab]!;
+    if (_loading[_activeTab]!) {
+      emit(HomeLoading(
+        tab: _activeTab,
+        itemsByTab: itemsByTab,
+        hasMore: hasMore,
+        participation: _participation,
+      ));
+    } else if (_errors[_activeTab] != null) {
+      emit(HomeError(
+        tab: _activeTab,
+        itemsByTab: itemsByTab,
+        hasMore: hasMore,
+        participation: _participation,
+        error: _errors[_activeTab]!,
+      ));
+    } else if (_loaded[_activeTab]! && _items[_activeTab]!.isEmpty) {
+      emit(HomeEmpty(
+        tab: _activeTab,
+        itemsByTab: itemsByTab,
+        participation: _participation,
+      ));
+    } else if (_loaded[_activeTab]!) {
+      emit(HomeSuccess(
+        tab: _activeTab,
+        itemsByTab: itemsByTab,
+        hasMore: hasMore,
+        participation: _participation,
+      ));
     } else {
-      emit(HomeSuccess(tab: tab, items: items, hasMore: _hasMore[tab]!));
+      emit(HomeInitial(
+        tab: _activeTab,
+        itemsByTab: itemsByTab,
+        hasMore: hasMore,
+        participation: _participation,
+      ));
     }
   }
 

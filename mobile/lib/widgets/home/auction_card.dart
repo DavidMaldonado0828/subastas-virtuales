@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../models/home/auction.dart';
+import '../shared/auction_status_badge.dart';
+import '../shared/cop_format.dart';
 
 class AuctionCard extends StatelessWidget {
-  const AuctionCard({required this.auction, super.key});
+  const AuctionCard({required this.auction, this.participation, super.key});
   final Auction auction;
+  final AuctionParticipation? participation;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -54,7 +57,11 @@ class AuctionCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Flexible(child: _StatusBadge(status: auction.status)),
+                      Flexible(child: AuctionStatusBadge(status: auction.status)),
+                      if (participation != null) ...[
+                        const SizedBox(width: 4),
+                        Flexible(child: _ParticipationBadge(participation: participation!)),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 2),
@@ -89,6 +96,29 @@ class AuctionCard extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _ParticipationBadge extends StatelessWidget {
+  const _ParticipationBadge({required this.participation});
+  final AuctionParticipation participation;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, foreground, background) = switch ((participation.status, participation.isLeader)) {
+      ('ACTIVA', true) => ('Vas ganando', const Color(0xFF166534), const Color(0xFFDCFCE7)),
+      ('ACTIVA', false) => ('Te superaron', const Color(0xFFC2410C), const Color(0xFFFFEDD5)),
+      ('CERRADA', true) => ('Ganaste', const Color(0xFF166534), const Color(0xFFDCFCE7)),
+      ('CERRADA', false) => ('Perdiste', const Color(0xFFB42318), const Color(0xFFFEE4E2)),
+      _ => ('', const Color(0xFF475467), const Color(0xFFEAECF0)),
+    };
+    if (label.isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(999)),
+      child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+        style: TextStyle(color: foreground, fontSize: 9, fontWeight: FontWeight.w700)),
+    );
+  }
 }
 
 class _NoAuctionImage extends StatelessWidget {
@@ -129,36 +159,4 @@ class _AmountLine extends StatelessWidget {
       ],
     );
   }
-}
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
-  final String status;
-
-  @override
-  Widget build(BuildContext context) {
-    final (label, foreground, background) = switch (status) {
-      'ACTIVA' => ('ACTIVA', const Color(0xFF166534), const Color(0xFFDCFCE7)),
-      'PROGRAMADA' => ('PROGRAMADA', const Color(0xFF1D4ED8), const Color(0xFFDBEAFE)),
-      'CANCELADA' => ('CANCELADA', const Color(0xFFB42318), const Color(0xFFFEE4E2)),
-      'FINALIZADA_SIN_GANADOR' => (status, const Color(0xFF475467), const Color(0xFFEAECF0)),
-      _ => ('CERRADA', const Color(0xFF475467), const Color(0xFFEAECF0)),
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(999)),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: foreground, fontSize: 10, fontWeight: FontWeight.w700),
-      ),
-    );
-  }
-}
-
-String cop(num value) {
-  final digits = value.round().toString();
-  final grouped = digits.replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => '.');
-  return '\$ $grouped';
 }
