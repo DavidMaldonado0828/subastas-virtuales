@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth/auth_session.dart';
 import '../../bloc/home/home_bloc.dart';
 import '../../widgets/home/auction_card.dart';
+import '../../widgets/shared/account_menu_button.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({required this.session, super.key});
@@ -70,25 +71,26 @@ class _HomeContentState extends State<_HomeContent>
     final user = widget.session.user;
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'SubastaX',
-          style: TextStyle(fontWeight: FontWeight.w800),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        scrolledUnderElevation: 0,
+        title: Image.asset(
+          'assets/branding/subastax_logo.png',
+          width: 128,
+          height: 90,
+          fit: BoxFit.contain,
+          alignment: Alignment.centerLeft,
+          semanticLabel: 'SubastaX',
         ),
         actions: [
-          Flexible(
-            child: Center(
-              child: Text(user?.alias ?? '', overflow: TextOverflow.ellipsis),
-            ),
-          ),
-          const SizedBox(width: 8),
-          _RoleBadge(role: user?.role ?? ''),
-          IconButton(
-            tooltip: 'Cerrar sesión',
-            onPressed: () async {
+          AccountMenuButton(
+            alias: user?.alias ?? '',
+            role: user?.role ?? '',
+            onMyAuctions: () => context.push('/mis-subastas'),
+            onLogout: () async {
               await widget.session.clear();
               if (context.mounted) context.go('/login');
             },
-            icon: const Icon(Icons.logout),
           ),
         ],
       ),
@@ -205,30 +207,6 @@ class _HomeContentState extends State<_HomeContent>
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _RoleBadge extends StatelessWidget {
-  const _RoleBadge({required this.role});
-  final String role;
-  @override
-  Widget build(BuildContext context) {
-    final (label, color) = switch (role) {
-      'ADMIN' => ('Administrador', const Color(0xFFEDE9FE)),
-      'VENDEDOR' => ('Vendedor', const Color(0xFFFFEDD5)),
-      _ => ('Participante', const Color(0xFFDBEAFE)),
-    };
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(30),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
       ),
     );
   }

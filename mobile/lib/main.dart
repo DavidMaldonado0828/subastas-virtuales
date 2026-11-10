@@ -14,6 +14,7 @@ import 'pages/auth/login_page.dart';
 import 'pages/home/home_page.dart';
 import 'pages/register/register_page.dart';
 import 'pages/detail/auction_detail_page.dart';
+import 'pages/my_auctions/my_auctions_page.dart';
 import 'repositories/auth/auth_repository.dart';
 import 'repositories/auth/auth_repository_impl.dart';
 import 'repositories/home/auction_repository.dart';
@@ -22,10 +23,13 @@ import 'repositories/register/register_repository.dart';
 import 'repositories/register/register_repository_impl.dart';
 import 'repositories/detail/detail_repository.dart';
 import 'repositories/detail/detail_repository_impl.dart';
+import 'repositories/my_auctions/my_auctions_repository.dart';
+import 'repositories/my_auctions/my_auctions_repository_impl.dart';
 import 'services/auth/auth_service.dart';
 import 'services/home/auction_service.dart';
 import 'services/register/register_service.dart';
 import 'services/detail/detail_service.dart';
+import 'services/my_auctions/my_auctions_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,6 +47,9 @@ Future<void> main() async {
     AuctionService(client: client),
   );
   final detailRepository = DetailRepositoryImpl(DetailService(client: client));
+  final myAuctionsRepository = MyAuctionsRepositoryImpl(
+    MyAuctionsService(client: client),
+  );
   runApp(
     SubastasApp(
       repository: RegisterRepositoryImpl(service: registerService),
@@ -51,6 +58,7 @@ Future<void> main() async {
       session: session,
       auctionRepository: auctionRepository,
       detailRepository: detailRepository,
+      myAuctionsRepository: myAuctionsRepository,
     ),
   );
 }
@@ -63,6 +71,7 @@ class SubastasApp extends StatelessWidget {
     required this.session,
     required this.auctionRepository,
     required this.detailRepository,
+    required this.myAuctionsRepository,
     super.key,
   });
 
@@ -72,6 +81,7 @@ class SubastasApp extends StatelessWidget {
   final AuthSession session;
   final AuctionRepository auctionRepository;
   final DetailRepository detailRepository;
+  final MyAuctionsRepository myAuctionsRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -82,9 +92,14 @@ class SubastasApp extends StatelessWidget {
         if (path == '/') {
           return session.isAuthenticated ? '/inicio' : '/login';
         }
-        if ((path == '/inicio' || path.startsWith('/subasta/')) &&
+        if ((path == '/inicio' ||
+                path == '/mis-subastas' ||
+                path.startsWith('/subasta/')) &&
             !session.isAuthenticated) {
           return '/login';
+        }
+        if (path == '/mis-subastas' && session.user?.role != 'POSTOR') {
+          return '/inicio';
         }
         if (path == '/login' && session.isAuthenticated) return '/inicio';
         return null;
@@ -102,6 +117,10 @@ class SubastasApp extends StatelessWidget {
         GoRoute(
           path: '/inicio',
           builder: (context, state) => HomePage(session: session),
+        ),
+        GoRoute(
+          path: '/mis-subastas',
+          builder: (context, state) => MyAuctionsPage(session: session),
         ),
         GoRoute(
           path: '/subasta/:id',
@@ -129,6 +148,9 @@ class SubastasApp extends StatelessWidget {
         RepositoryProvider<AuthRepository>.value(value: authRepository),
         RepositoryProvider<AuctionRepository>.value(value: auctionRepository),
         RepositoryProvider<DetailRepository>.value(value: detailRepository),
+        RepositoryProvider<MyAuctionsRepository>.value(
+          value: myAuctionsRepository,
+        ),
       ],
       child: MultiBlocProvider(
         providers: [
