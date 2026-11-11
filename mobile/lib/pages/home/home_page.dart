@@ -88,6 +88,7 @@ class _HomeContentState extends State<_HomeContent>
             role: user?.role ?? '',
             onMyAuctions: () => context.push('/mis-subastas'),
             onMyProducts: () => context.push('/vendedor/productos'),
+            onSellerAuctions: () => context.push('/vendedor/subastas'),
             onLogout: () async {
               await widget.session.clear();
               if (context.mounted) context.go('/login');

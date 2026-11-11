@@ -49,11 +49,22 @@ void main() {
     expect(find.text('Cerrar sesi\u00f3n'), findsOneWidget);
   });
 
-  testWidgets('otros roles solo ven Cerrar sesión', (tester) async {
+  testWidgets('VENDEDOR ve sus subastas y productos', (tester) async {
     await _pump(tester, 'VENDEDOR');
     await tester.tap(find.byTooltip('Cuenta'));
     await tester.pumpAndSettle();
+    expect(find.text('Mis subastas'), findsOneWidget);
+    expect(find.text('Mis productos'), findsOneWidget);
+    expect(find.text('Mis pujas'), findsNothing);
+    expect(find.text('Cerrar sesi\u00f3n'), findsOneWidget);
+  });
+
+  testWidgets('ADMIN solo ve Cerrar sesión', (tester) async {
+    await _pump(tester, 'ADMIN');
+    await tester.tap(find.byTooltip('Cuenta'));
+    await tester.pumpAndSettle();
     expect(find.text('Mis subastas'), findsNothing);
+    expect(find.text('Mis productos'), findsNothing);
     expect(find.text('Cerrar sesi\u00f3n'), findsOneWidget);
   });
 }
