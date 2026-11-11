@@ -15,6 +15,11 @@ import 'pages/home/home_page.dart';
 import 'pages/register/register_page.dart';
 import 'pages/detail/auction_detail_page.dart';
 import 'pages/my_auctions/my_auctions_page.dart';
+import 'pages/seller_products/seller_products_page.dart';
+import 'pages/seller_products/seller_product_form_page.dart';
+import 'repositories/seller_products/seller_products_repository.dart';
+import 'repositories/seller_products/seller_products_repository_impl.dart';
+import 'services/seller_products/seller_products_service.dart';
 import 'repositories/auth/auth_repository.dart';
 import 'repositories/auth/auth_repository_impl.dart';
 import 'repositories/home/auction_repository.dart';
@@ -50,6 +55,9 @@ Future<void> main() async {
   final myAuctionsRepository = MyAuctionsRepositoryImpl(
     MyAuctionsService(client: client),
   );
+  final sellerProductsRepository = SellerProductsRepositoryImpl(
+    SellerProductsService(client: client),
+  );
   runApp(
     SubastasApp(
       repository: RegisterRepositoryImpl(service: registerService),
@@ -59,6 +67,7 @@ Future<void> main() async {
       auctionRepository: auctionRepository,
       detailRepository: detailRepository,
       myAuctionsRepository: myAuctionsRepository,
+      sellerProductsRepository: sellerProductsRepository,
     ),
   );
 }
@@ -72,6 +81,7 @@ class SubastasApp extends StatelessWidget {
     required this.auctionRepository,
     required this.detailRepository,
     required this.myAuctionsRepository,
+    required this.sellerProductsRepository,
     super.key,
   });
 
@@ -82,6 +92,7 @@ class SubastasApp extends StatelessWidget {
   final AuctionRepository auctionRepository;
   final DetailRepository detailRepository;
   final MyAuctionsRepository myAuctionsRepository;
+  final SellerProductsRepository sellerProductsRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -94,11 +105,16 @@ class SubastasApp extends StatelessWidget {
         }
         if ((path == '/inicio' ||
                 path == '/mis-subastas' ||
+                path.startsWith('/vendedor/productos') ||
                 path.startsWith('/subasta/')) &&
             !session.isAuthenticated) {
           return '/login';
         }
         if (path == '/mis-subastas' && session.user?.role != 'POSTOR') {
+          return '/inicio';
+        }
+        if (path.startsWith('/vendedor/productos') &&
+            session.user?.role != 'VENDEDOR') {
           return '/inicio';
         }
         if (path == '/login' && session.isAuthenticated) return '/inicio';
@@ -121,6 +137,23 @@ class SubastasApp extends StatelessWidget {
         GoRoute(
           path: '/mis-subastas',
           builder: (context, state) => MyAuctionsPage(session: session),
+        ),
+        GoRoute(
+          path: '/vendedor/productos',
+          builder: (context, state) =>
+              SellerProductsPage(repository: sellerProductsRepository),
+        ),
+        GoRoute(
+          path: '/vendedor/productos/nuevo',
+          builder: (context, state) =>
+              SellerProductFormPage(repository: sellerProductsRepository),
+        ),
+        GoRoute(
+          path: '/vendedor/productos/:id/editar',
+          builder: (context, state) => SellerProductFormPage(
+            repository: sellerProductsRepository,
+            productId: int.tryParse(state.pathParameters['id'] ?? ''),
+          ),
         ),
         GoRoute(
           path: '/subasta/:id',
@@ -150,6 +183,9 @@ class SubastasApp extends StatelessWidget {
         RepositoryProvider<DetailRepository>.value(value: detailRepository),
         RepositoryProvider<MyAuctionsRepository>.value(
           value: myAuctionsRepository,
+        ),
+        RepositoryProvider<SellerProductsRepository>.value(
+          value: sellerProductsRepository,
         ),
       ],
       child: MultiBlocProvider(

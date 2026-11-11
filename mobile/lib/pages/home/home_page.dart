@@ -87,6 +87,7 @@ class _HomeContentState extends State<_HomeContent>
             alias: user?.alias ?? '',
             role: user?.role ?? '',
             onMyAuctions: () => context.push('/mis-subastas'),
+            onMyProducts: () => context.push('/vendedor/productos'),
             onLogout: () async {
               await widget.session.clear();
               if (context.mounted) context.go('/login');

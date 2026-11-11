@@ -6,6 +6,7 @@ class AccountMenuButton extends StatelessWidget {
     required this.role,
     required this.onLogout,
     required this.onMyAuctions,
+    this.onMyProducts,
     super.key,
   });
 
@@ -13,6 +14,7 @@ class AccountMenuButton extends StatelessWidget {
   final String role;
   final VoidCallback onLogout;
   final VoidCallback onMyAuctions;
+  final VoidCallback? onMyProducts;
 
   @override
   Widget build(BuildContext context) => PopupMenuButton<String>(
@@ -20,6 +22,7 @@ class AccountMenuButton extends StatelessWidget {
     onSelected: (value) {
       if (value == 'logout') onLogout();
       if (value == 'my-auctions') onMyAuctions();
+      if (value == 'my-products') onMyProducts?.call();
     },
     itemBuilder: (context) => [
       PopupMenuItem<String>(
@@ -53,6 +56,17 @@ class AccountMenuButton extends StatelessWidget {
               Icon(Icons.list_alt_outlined),
               SizedBox(width: 12),
               Text('Mis subastas'),
+            ],
+          ),
+        ),
+      if (role == 'VENDEDOR')
+        const PopupMenuItem<String>(
+          value: 'my-products',
+          child: Row(
+            children: [
+              Icon(Icons.inventory_2_outlined),
+              SizedBox(width: 12),
+              Text('Mis productos'),
             ],
           ),
         ),
